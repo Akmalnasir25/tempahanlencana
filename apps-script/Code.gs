@@ -16,7 +16,7 @@ var BANK = {
   nama: 'PERSEKUTUAN PENGAKAP MALAYSIA DAERAH KINTA UTARA',
   noAkaun: '558172816191',
   bank: 'MAYBANK',
-  ref1: 'LENCANA', // Ref 2 ialah nama sekolah (diisi automatik di borang)
+  // Ref 1 = ID lencana dipilih, Ref 2 = nama sekolah (kedua-duanya diisi automatik di borang).
 };
 var SHEET_LENCANA = 'Senarai Lencana';
 var SHEET_TEMPAHAN = 'Tempahan';

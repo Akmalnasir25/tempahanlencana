@@ -252,6 +252,18 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
 .bank .acc .ref2 { white-space: normal; }
 .bank .acc .ref2.placeholder { opacity: .6; font-style: italic; }
 .ref-hint { margin: 10px 0 0; }
+.copy-all {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1.5px solid var(--navy);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--navy);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
 
 .status p { margin: 0; text-align: center; color: var(--muted); }
 
@@ -427,6 +439,7 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
           </span>
         </div>
       </div>
+      <button type="button" class="copy-all" id="copyAll">Salin semua maklumat bayaran</button>
       <p class="hint ref-hint">Sila masukkan <strong>Ref 1</strong> dan <strong>Ref 2</strong> seperti di atas semasa membuat pindahan wang.</p>
 
       <h2><span class="step">3</span> Muat naik resit</h2>
@@ -509,7 +522,6 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
     $("bankNama").textContent = cfg.BANK.nama;
     $("bankNo").textContent = cfg.BANK.noAkaun;
     $("bankBank").textContent = cfg.BANK.bank;
-    $("bankRef1").textContent = cfg.BANK.ref1;
     updateRef2();
     dropSubDefault = "Gambar (JPG/PNG) atau PDF, maksimum " + cfg.SAIZ_RESIT_MAKS_MB + " MB";
     $("dropSub").textContent = dropSubDefault;
@@ -523,12 +535,22 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
   }
   $("sekolah").addEventListener("input", updateRef2);
 
-  form.querySelectorAll(".copy").forEach(function (btn) {
+  function maklumatBayaran() {
+    return "Nama : " + cfg.BANK.nama +
+      "\nNo Akaun : " + cfg.BANK.noAkaun +
+      "\nBank : " + cfg.BANK.bank +
+      "\n\nRef 1: " + $("bankRef1").textContent +
+      "\nRef 2: " + $("bankRef2").textContent;
+  }
+
+  form.querySelectorAll(".copy, .copy-all").forEach(function (btn) {
     btn.addEventListener("click", function () {
-      var text = $(btn.getAttribute("data-copy")).textContent;
+      var label = btn.textContent;
+      var target = btn.getAttribute("data-copy");
+      var text = target ? $(target).textContent : maklumatBayaran();
       var done = function () {
         btn.textContent = "Disalin!";
-        setTimeout(function () { btn.textContent = "Salin"; }, 1500);
+        setTimeout(function () { btn.textContent = label; }, 1500);
       };
       if (navigator.clipboard) {
         navigator.clipboard.writeText(text).then(done, fallbackCopy);
@@ -652,6 +674,7 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
     $("badgeName").textContent = l.nama;
     $("badgeDesc").textContent = l.keterangan;
     $("badgePrice").textContent = rm(l.harga);
+    $("bankRef1").textContent = l.id;
     $("deadlineText").textContent = formatTarikh(l.tarikhAkhir);
     show("badgeHead", true);
     show("changeBtn", senarai.length > 1);

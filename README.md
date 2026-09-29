@@ -19,6 +19,7 @@ Guru mengisi:
 | Ref 2 | NAMA SEKOLAH (diisi automatik daripada nama sekolah yang ditaip) |
 
 Selepas tempahan berjaya, guru menerima nombor rujukan (contoh `LencanaAKPNPKK26-0001`).
+Sekolah yang sama boleh membuat tempahan tambahan. Halaman kejayaan akan menunjukkan jumlah keseluruhan lencana sekolah itu bagi semua tempahannya.
 
 ## Struktur fail
 
@@ -62,6 +63,7 @@ Paparan admin menunjukkan:
 
 - jumlah tempahan, jumlah lencana dan jumlah bayaran
 - ringkasan mengikut lencana
+- **ringkasan mengikut sekolah**: sekolah yang membuat tempahan tambahan dijumlahkan menjadi satu baris bagi setiap lencana. Nama yang ditaip sedikit berbeza, contohnya "SK Taman Rapat" dan "sk. taman rapat", dikira sebagai sekolah yang sama.
 - senarai semua tempahan (sekolah, bilangan, jumlah, pautan resit, telefon dengan pautan WhatsApp)
 
 Ia juga boleh ditapis mengikut lencana dan dicari mengikut nama sekolah.

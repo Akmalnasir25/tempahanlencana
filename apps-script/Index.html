@@ -253,6 +253,8 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
 .summary dt { color: var(--muted); }
 .summary dd { margin: 0; font-weight: 700; text-align: right; overflow-wrap: anywhere; }
 .summary .ref dd { color: var(--navy); font-size: 1.1rem; }
+.summary .total-row { background: #fff8dc; margin: 0 -16px; padding: 6px 16px; }
+.summary .total-row dd { color: var(--navy-deep); }
 
 .hidden { display: none !important; }
 
@@ -858,6 +860,12 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
       ["Bilangan", data.bilangan],
       ["Jumlah", rm(data.jumlah)],
     ];
+    // Tempahan tambahan: tunjuk jumlah keseluruhan sekolah untuk lencana ini.
+    if (data.bilTempahanSekolah > 1) {
+      rows.push(["Jumlah keseluruhan sekolah",
+        data.bilanganSekolah + " lencana (" + data.bilTempahanSekolah + " tempahan)", "total-row"]);
+      rows.push(["Jumlah bayaran keseluruhan", rm(data.jumlahBayaranSekolah), "total-row"]);
+    }
 
     var dl = $("summary");
     dl.innerHTML = "";

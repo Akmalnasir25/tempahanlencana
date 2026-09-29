@@ -106,7 +106,7 @@ function hantarTempahan(d) {
     }
 
     var jumlah = Math.round(bilangan * lencana.harga * 100) / 100;
-    var id, fail;
+    var id, fail, jumlahSekolah;
 
     var lock = LockService.getScriptLock();
     lock.waitLock(30000);
@@ -123,6 +123,7 @@ function hantarTempahan(d) {
         bilangan, lencana.harga, jumlah, fail.getUrl(),
       ]);
       SpreadsheetApp.flush();
+      jumlahSekolah = kiraSekolah_(lencana.id, sekolah);
     } finally {
       lock.releaseLock();
     }
@@ -137,11 +138,39 @@ function hantarTempahan(d) {
     return {
       ok: true, id: id, lencana: lencana.nama, sekolah: sekolah, pemimpin: pemimpin,
       telefon: telefon, bilangan: bilangan, jumlah: jumlah,
+      bilTempahanSekolah: jumlahSekolah.tempahan, bilanganSekolah: jumlahSekolah.bilangan,
+      jumlahBayaranSekolah: jumlahSekolah.jumlah,
     };
   } catch (err) {
     console.error(err);
     return { ok: false, error: 'Ralat pelayan. Sila cuba lagi sebentar.' };
   }
+}
+
+/**
+ * Kunci untuk mengumpul tempahan sekolah yang sama walaupun ditaip sedikit berbeza,
+ * cth. "SK Taman Rapat" dan "sk. taman  rapat" -> "SK TAMAN RAPAT".
+ */
+function kunciSekolah_(s) {
+  return String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+}
+
+/** Jumlah semua tempahan bagi satu sekolah untuk satu lencana. */
+function kiraSekolah_(lencanaId, sekolah) {
+  var kunci = kunciSekolah_(sekolah);
+  var hasil = { tempahan: 0, bilangan: 0, jumlah: 0 };
+  var sheet = getTempahanSheet_();
+  if (sheet.getLastRow() < 2) return hasil;
+  sheet.getRange(2, 3, sheet.getLastRow() - 1, 8).getValues().forEach(function (r) {
+    // r: [ID Lencana, Nama Lencana, Sekolah, Pemimpin, Telefon, Bilangan, Harga, Jumlah]
+    if (String(r[0]).trim() === lencanaId && kunciSekolah_(r[2]) === kunci) {
+      hasil.tempahan++;
+      hasil.bilangan += Number(r[5]) || 0;
+      hasil.jumlah += Number(r[7]) || 0;
+    }
+  });
+  hasil.jumlah = Math.round(hasil.jumlah * 100) / 100;
+  return hasil;
 }
 
 /** Baca tab "Senarai Lencana" dan pulangkan baris yang lengkap. */

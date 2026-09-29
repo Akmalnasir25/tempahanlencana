@@ -192,6 +192,16 @@ button.btn.danger { background: var(--danger); color: #fff; }
         </div>
       </div>
 
+      <h2 id="sekolahTajuk">Ringkasan mengikut sekolah</h2>
+      <p class="help">Tempahan tambahan dari sekolah yang sama dijumlahkan di sini.</p>
+      <div class="table-wrap">
+        <table>
+          <thead id="sekolahHead"></thead>
+          <tbody id="sekolahBody"></tbody>
+          <tfoot id="sekolahFoot"></tfoot>
+        </table>
+      </div>
+
       <h2>Senarai tempahan</h2>
       <div class="table-wrap">
         <table>
@@ -534,6 +544,9 @@ button.btn.danger { background: var(--danger); color: #fff; }
       td0.colSpan = 5; tr0.appendChild(td0); rb.appendChild(tr0);
     }
 
+    // Ringkasan mengikut sekolah (sekolah yang sama dijumlahkan bagi setiap lencana)
+    paparSekolah(list, !pilih);
+
     // Senarai tempahan (terbaru di atas)
     var tb = $("senarai");
     tb.innerHTML = "";
@@ -586,6 +599,64 @@ button.btn.danger { background: var(--danger); color: #fff; }
       tf.appendChild(trF);
     }
   }
+  function kunciSekolah(s) {
+    return String(s || "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+  }
+
+  function paparSekolah(list, semua) {
+    var kumpulan = {};
+    list.forEach(function (t) {
+      var k = (semua ? t.lencanaId + "|" : "") + kunciSekolah(t.sekolah);
+      var g = kumpulan[k] || (kumpulan[k] = { sekolah: kunciSekolah(t.sekolah), lencanaId: t.lencanaId, tempahan: 0, bilangan: 0, jumlah: 0 });
+      g.tempahan++;
+      g.bilangan += t.bilangan;
+      g.jumlah += t.jumlah;
+    });
+    var rows = Object.keys(kumpulan).map(function (k) { return kumpulan[k]; })
+      .sort(function (a, b) { return a.sekolah.localeCompare(b.sekolah) || a.lencanaId.localeCompare(b.lencanaId); });
+
+    var head = $("sekolahHead");
+    head.innerHTML = "";
+    var trH = el("tr");
+    ["#", "Sekolah"].concat(semua ? ["Lencana"] : []).concat(["Bilangan", "Tempahan", "Jumlah (RM)"])
+      .forEach(function (h, i) { trH.appendChild(el("th", h, i === 0 || /Bilangan|Tempahan|Jumlah/.test(h) ? "num" : "")); });
+    head.appendChild(trH);
+
+    var body = $("sekolahBody");
+    body.innerHTML = "";
+    var jumBil = 0, jumRM = 0, jumT = 0;
+    rows.forEach(function (g, i) {
+      jumBil += g.bilangan; jumRM += g.jumlah; jumT += g.tempahan;
+      var tr = el("tr");
+      tr.appendChild(el("td", i + 1, "num"));
+      tr.appendChild(el("td", g.sekolah, "wrap"));
+      if (semua) tr.appendChild(el("td", g.lencanaId));
+      tr.appendChild(el("td", g.bilangan, "num big"));
+      tr.appendChild(el("td", g.tempahan, "num"));
+      tr.appendChild(el("td", rm(g.jumlah), "num"));
+      body.appendChild(tr);
+    });
+    var ncol = semua ? 6 : 5;
+    if (!rows.length) {
+      var trE = el("tr"), tdE = el("td", "Tiada tempahan.", "empty");
+      tdE.colSpan = ncol; trE.appendChild(tdE); body.appendChild(trE);
+    }
+    var foot = $("sekolahFoot");
+    foot.innerHTML = "";
+    if (rows.length) {
+      var trF = el("tr");
+      var unik = {};
+      rows.forEach(function (g) { unik[g.sekolah] = 1; });
+      var tdL = el("td", "Jumlah (" + Object.keys(unik).length + " sekolah)");
+      tdL.colSpan = semua ? 3 : 2;
+      trF.appendChild(tdL);
+      trF.appendChild(el("td", jumBil, "num big"));
+      trF.appendChild(el("td", jumT, "num"));
+      trF.appendChild(el("td", rm(jumRM), "num"));
+      foot.appendChild(trF);
+    }
+  }
+
   $("filterLencana").addEventListener("change", papar);
   $("cari").addEventListener("input", papar);
 

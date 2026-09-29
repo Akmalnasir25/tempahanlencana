@@ -38,8 +38,15 @@ var CONTOH_LENCANA = [
   5, new Date('2026-10-02T23:00:00+08:00'), '', 'YA',
 ];
 
-/** Paparkan borang. */
-function doGet() {
+/** Paparkan borang, atau paparan admin jika URL berakhir dengan ?admin */
+function doGet(e) {
+  if (e && e.parameter && e.parameter.admin !== undefined) {
+    var t = HtmlService.createTemplateFromFile('Admin');
+    t.mode = 'tempahan';
+    return t.evaluate()
+      .setTitle('Admin Tempahan Lencana')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  }
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle('Tempahan Lencana Pengakap')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -241,6 +248,7 @@ function clean_(v, max) {
 
 /** Jalankan sekali dari editor untuk cipta tab/folder dan memberi kebenaran. */
 function setup() {
+  pastikanAdmin_();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   ss.setSpreadsheetTimeZone('Asia/Kuala_Lumpur');
   // Format tarikh hari/bulan/tahun supaya 2/10/2026 dibaca sebagai 2 Oktober.
@@ -248,4 +256,126 @@ function setup() {
   getLencanaSheet_();
   getTempahanSheet_();
   getFolder_();
+}
+
+// =====================================================================
+// Menu "Lencana" dalam Google Sheet (untuk admin sahaja)
+// =====================================================================
+
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('Lencana')
+    .addItem('Paparan admin (senarai tempahan)', 'menuPaparanAdmin')
+    .addItem('Tambah lencana baru', 'menuTambahLencana')
+    .addItem('Tukar / muat naik gambar lencana', 'menuTukarGambar')
+    .addToUi();
+}
+
+function menuPaparanAdmin() { bukaAdmin_('tempahan', 'Paparan admin'); }
+function menuTambahLencana() { bukaAdmin_('tambah', 'Tambah lencana baru'); }
+function menuTukarGambar() { bukaAdmin_('gambar', 'Tukar / muat naik gambar lencana'); }
+
+function bukaAdmin_(mode, tajuk) {
+  var t = HtmlService.createTemplateFromFile('Admin');
+  t.mode = mode;
+  var html = t.evaluate().setWidth(mode === 'tempahan' ? 1000 : 480).setHeight(680);
+  SpreadsheetApp.getUi().showModelessDialog(html, tajuk);
+}
+
+/** Dipanggil oleh dialog admin: senarai semua lencana dalam Sheet. */
+function adminSenarai() {
+  pastikanAdmin_();
+  var sheet = getLencanaSheet_();
+  if (sheet.getLastRow() < 2) return [];
+  return sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues()
+    .filter(function (r) { return String(r[0]).trim(); })
+    .map(function (r) { return { id: String(r[0]).trim(), nama: String(r[1]).trim() }; });
+}
+
+/** Dipanggil oleh paparan admin: semua lencana dan tempahan. */
+function adminTempahan() {
+  pastikanAdmin_();
+  var lencana = getLencana_().map(function (l) {
+    return { id: l.id, nama: l.nama, harga: l.harga, tarikhAkhir: l.tarikhAkhir.toISOString(), aktif: l.aktif };
+  });
+  var sheet = getTempahanSheet_();
+  var tempahan = sheet.getLastRow() < 2 ? [] :
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, HEADERS_TEMPAHAN.length).getValues()
+      .filter(function (r) { return r[0]; })
+      .map(function (r) {
+        return {
+          rujukan: String(r[0]), masa: r[1] instanceof Date ? r[1].toISOString() : String(r[1]),
+          lencanaId: String(r[2]), lencana: String(r[3]), sekolah: String(r[4]), pemimpin: String(r[5]),
+          telefon: String(r[6]), bilangan: Number(r[7]) || 0, jumlah: Number(r[9]) || 0, resit: String(r[10]),
+        };
+      });
+  return { lencana: lencana, tempahan: tempahan, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() };
+}
+
+/** Dipanggil oleh dialog admin: tambah satu baris lencana baru. */
+function tambahLencana(d) {
+  pastikanAdmin_();
+  var id = String(d.id || '').trim().toUpperCase();
+  var nama = clean_(d.nama, 150);
+  var keterangan = clean_(d.keterangan, 200);
+  var harga = Math.round(Number(d.harga) * 100) / 100;
+  var tarikhAkhir = new Date(d.tarikh + 'T' + d.masa + ':00+08:00');
+
+  if (!/^[A-Z0-9]{2,15}$/.test(id)) throw new Error('ID mesti 2-15 huruf/nombor tanpa ruang.');
+  if (nama.length < 3) throw new Error('Sila masukkan nama lencana.');
+  if (!(harga > 0)) throw new Error('Harga tidak sah.');
+  if (isNaN(tarikhAkhir.getTime())) throw new Error('Tarikh akhir tidak sah.');
+  if (!d.gambar) throw new Error('Sila pilih gambar lencana.');
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var ada = adminSenarai().some(function (l) { return l.id.toUpperCase() === id; });
+    if (ada) throw new Error('ID "' + id + '" sudah digunakan. Sila guna ID lain.');
+    var url = simpanGambar_(id, d.gambar);
+    getLencanaSheet_().appendRow([id, nama, keterangan, harga, tarikhAkhir, url, 'YA']);
+  } finally {
+    lock.releaseLock();
+  }
+  return { id: id, nama: nama };
+}
+
+/** Dipanggil oleh dialog admin: tukar gambar bagi lencana sedia ada. */
+function tukarGambar(id, gambar) {
+  pastikanAdmin_();
+  if (!gambar) throw new Error('Sila pilih gambar lencana.');
+  var sheet = getLencanaSheet_();
+  var ids = sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 1), 1).getValues();
+  for (var i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]).trim() === id) {
+      sheet.getRange(i + 2, 6).setValue(simpanGambar_(id, gambar));
+      return { id: id };
+    }
+  }
+  throw new Error('Lencana "' + id + '" tidak dijumpai.');
+}
+
+/** Simpan gambar lencana ke folder Drive "Gambar Lencana" dan pulangkan pautannya. */
+function simpanGambar_(id, g) {
+  var jenis = String(g.jenis || '');
+  if (!/^image\//.test(jenis) || !g.data) throw new Error('Fail mesti gambar.');
+  var bytes = Utilities.base64Decode(g.data);
+  if (bytes.length > 2 * 1024 * 1024) throw new Error('Saiz gambar melebihi 2 MB.');
+
+  var root = getFolder_();
+  var it = root.getFoldersByName('Gambar Lencana');
+  var folder = it.hasNext() ? it.next() : root.createFolder('Gambar Lencana');
+  var ext = jenis === 'image/png' ? '.png' : '.jpg';
+  return folder.createFile(Utilities.newBlob(bytes, jenis, id + ext)).getUrl();
+}
+
+/**
+ * Fungsi admin hanya boleh digunakan oleh editor Sheet ini.
+ * (Pengguna borang awam tidak log masuk, jadi emel mereka kosong.)
+ */
+function pastikanAdmin_() {
+  var email = Session.getActiveUser().getEmail();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ok = !!email && (email === Session.getEffectiveUser().getEmail() ||
+    ss.getEditors().some(function (u) { return u.getEmail() === email; }));
+  if (!ok) throw new Error('Tiada kebenaran.');
 }

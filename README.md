@@ -25,7 +25,8 @@ Selepas tempahan berjaya, guru menerima nombor rujukan (contoh `AKPN26-0001`).
 | Fail | Kegunaan |
 |---|---|
 | `apps-script/Code.gs` | Kod pelayan: paparkan borang, simpan tempahan, akaun bank |
-| `apps-script/Index.html` | Borang (HTML, CSS, JS dalam satu fail) |
+| `apps-script/Index.html` | Borang tempahan untuk guru |
+| `apps-script/Admin.html` | Paparan admin: senarai tempahan, tambah lencana, gambar lencana |
 | `apps-script/appsscript.json` | Tetapan projek (zon waktu Malaysia) |
 | `assets/lencana.jpg` | Gambar lencana AKPN 2026, untuk dimuat naik ke Google Drive |
 
@@ -35,30 +36,50 @@ Selepas tempahan berjaya, guru menerima nombor rujukan (contoh `AKPN26-0001`).
 2. Menu **Extensions → Apps Script**.
 3. Dalam fail `Code.gs`, padam kod sedia ada dan tampal seluruh kandungan `apps-script/Code.gs`.
 4. Tekan **+** (sebelah *Files*) → **HTML**, namakan fail `Index` (tepat begitu), dan tampal seluruh kandungan `apps-script/Index.html`.
-5. Tekan **Save**.
-6. Pilih fungsi `setup` di bar atas, tekan **Run**, dan benarkan akses (Sheet, Drive).
+5. Ulang langkah 4 untuk fail HTML kedua bernama `Admin`, dan tampal `apps-script/Admin.html`.
+6. Tekan **Save**.
+7. Pilih fungsi `setup` di bar atas, tekan **Run**, dan benarkan akses (Sheet, Drive).
    Ini akan mencipta:
    - Tab **Senarai Lencana**, yang sudah berisi lencana AKPN 2026 (RM 5.00, tutup 2/10/2026 jam 11:00 malam)
    - Tab **Tempahan**
    - Folder Drive **Resit Tempahan Lencana**
-7. Gambar lencana:
-   1. Muat naik `assets/lencana.jpg` ke Google Drive anda.
-   2. Klik kanan pada fail itu → **Share → Copy link**.
-   3. Tampal pautan itu dalam lajur **Gambar** di tab *Senarai Lencana*.
-8. **Deploy → New deployment** → ikon gear → **Web app**:
+8. Muat semula (refresh) Google Sheet. Menu baru **Lencana** akan muncul di bar menu.
+   Pilih **Lencana → Tukar / muat naik gambar lencana**, pilih AKPN26, dan muat naik `assets/lencana.jpg`.
+9. **Deploy → New deployment** → ikon gear → **Web app**:
    - Execute as: **Me**
    - Who has access: **Anyone**
-9. Tekan **Deploy**, kemudian salin **Web app URL** (berakhir dengan `/exec`). Inilah pautan borang untuk dikongsi kepada guru.
+10. Tekan **Deploy**, kemudian salin **Web app URL** (berakhir dengan `/exec`). Inilah pautan borang untuk dikongsi kepada guru.
 
-> Jika anda mengubah `Code.gs` atau `Index.html` selepas deploy, buat **Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy**. Pautan kekal sama.
+> Jika anda mengubah `Code.gs`, `Index.html` atau `Admin.html` selepas deploy, buat **Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy**. Pautan kekal sama.
 > Menambah atau mengubah baris dalam Sheet tidak memerlukan deploy semula.
 
 Untuk menukar akaun bank, ubah `BANK` di bahagian atas `Code.gs`, kemudian deploy versi baru.
 Untuk notifikasi emel setiap tempahan, isi `EMEL_ADMIN`.
 
+## Paparan admin
+
+Paparan admin menunjukkan:
+
+- jumlah tempahan, jumlah lencana dan jumlah bayaran
+- ringkasan mengikut lencana
+- senarai semua tempahan (sekolah, bilangan, jumlah, pautan resit, telefon dengan pautan WhatsApp)
+
+Ia juga boleh ditapis mengikut lencana dan dicari mengikut nama sekolah.
+
+Cara membukanya:
+
+- **Komputer**: dalam Google Sheet, pilih **Lencana → Paparan admin (senarai tempahan)**.
+- **Telefon / mana-mana browser**: buka Web app URL dengan `?admin` di hujung, contohnya `https://script.google.com/macros/s/XXXX/exec?admin`. Anda mesti log masuk dengan akaun Google pemilik Sheet.
+
+Hanya pemilik dan editor Google Sheet boleh melihat data. Orang lain yang membuka pautan `?admin` akan mendapat mesej "Tiada kebenaran".
+Editor selain pemilik perlu menggunakan menu dalam Google Sheet. Pautan `?admin` hanya mengenali akaun pemilik.
+
 ## Tambah tempahan lencana baru
 
-Tiada kod perlu diubah. Cuma tambah satu baris dalam tab **Senarai Lencana**:
+Cara paling mudah: **Lencana → Tambah lencana baru** dalam Google Sheet, atau tab **Tambah lencana** dalam paparan admin.
+Isi ID, nama, harga, tarikh akhir dan pilih gambar. Lencana terus dibuka untuk tempahan, dan gambar disimpan dalam folder Drive *Resit Tempahan Lencana/Gambar Lencana*.
+
+Anda juga boleh menambah satu baris terus dalam tab **Senarai Lencana**:
 
 | Lajur | Contoh | Nota |
 |---|---|---|
@@ -67,7 +88,7 @@ Tiada kod perlu diubah. Cuma tambah satu baris dalam tab **Senarai Lencana**:
 | Keterangan | Semua unit | Pilihan |
 | Harga (RM) | 5 | Harga seunit |
 | Tarikh Akhir | 15/11/2026 23:00 | Hari/bulan/tahun. Borang tutup automatik selepas masa ini (waktu Malaysia). |
-| Gambar | pautan Google Drive | Pautan fail Drive (tak perlu dikongsi umum) atau pautan gambar `https://...`. Guna gambar kurang 1 MB supaya borang cepat dibuka. |
+| Gambar | pautan Google Drive | Diisi automatik jika guna menu. Atau tampal pautan fail Drive (tak perlu dikongsi umum) / pautan gambar `https://...`. |
 | Aktif | YA | Tukar kepada `TIDAK` untuk sembunyikan lencana lama dari borang |
 
 Bagaimana borang memaparkannya:

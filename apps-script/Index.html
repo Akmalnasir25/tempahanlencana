@@ -413,7 +413,7 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
 
       <div class="field">
         <label for="bilangan">Bilangan lencana</label>
-        <input id="bilangan" name="bilangan" type="number" required min="1" max="1000" step="1" inputmode="numeric" placeholder="cth: 25">
+        <input id="bilangan" name="bilangan" type="text" required inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="cth: 25">
         <p class="err" data-for="bilangan"></p>
       </div>
 
@@ -740,7 +740,12 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
     $("totalAmount").textContent = rm(n * lencana.harga);
     $("payAmount").textContent = n ? rm(n * lencana.harga) : "jumlah di atas";
   }
-  $("bilangan").addEventListener("input", updateTotal);
+  $("bilangan").addEventListener("input", function () {
+    // Nombor sahaja (tiada anak panah naik/turun; papan kekunci nombor di telefon).
+    var v = this.value.replace(/\D/g, "");
+    if (v !== this.value) this.value = v;
+    updateTotal();
+  });
 
   // ---------- Fail resit ----------
   fileInput.addEventListener("change", function () {

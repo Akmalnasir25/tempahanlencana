@@ -15,6 +15,8 @@ Guru mengisi:
 | Nama akaun | PERSEKUTUAN PENGAKAP MALAYSIA DAERAH KINTA UTARA |
 | No. akaun | 558172816191 |
 | Bank | MAYBANK |
+| Ref 1 | LENCANA |
+| Ref 2 | NAMA SEKOLAH (diisi automatik daripada nama sekolah yang ditaip) |
 
 Selepas tempahan berjaya, guru menerima nombor rujukan (contoh `AKPN26-0001`).
 
@@ -51,7 +53,7 @@ Selepas tempahan berjaya, guru menerima nombor rujukan (contoh `AKPN26-0001`).
 > Jika anda mengubah `Code.gs` atau `Index.html` selepas deploy, buat **Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy**. Pautan kekal sama.
 > Menambah atau mengubah baris dalam Sheet tidak memerlukan deploy semula.
 
-Untuk menukar akaun bank, ubah `BANK` di bahagian atas `Code.gs`, kemudian deploy versi baru.
+Untuk menukar akaun bank atau Ref 1, ubah `BANK` di bahagian atas `Code.gs`, kemudian deploy versi baru.
 Untuk notifikasi emel setiap tempahan, isi `EMEL_ADMIN`.
 
 ## Tambah tempahan lencana baru

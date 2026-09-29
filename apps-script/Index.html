@@ -249,6 +249,9 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
   .bank .v { text-align: left; }
 }
 .bank .acc span, .copy { white-space: nowrap; }
+.bank .acc .ref2 { white-space: normal; }
+.bank .acc .ref2.placeholder { opacity: .6; font-style: italic; }
+.ref-hint { margin: 10px 0 0; }
 
 .status p { margin: 0; text-align: center; color: var(--muted); }
 
@@ -402,14 +405,29 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
           <span class="k">No. akaun</span>
           <span class="v acc">
             <span id="bankNo"></span>
-            <button type="button" class="copy" id="copyBtn">Salin</button>
+            <button type="button" class="copy" data-copy="bankNo">Salin</button>
           </span>
         </div>
         <div class="bank-row">
           <span class="k">Bank</span>
           <span class="v" id="bankBank"></span>
         </div>
+        <div class="bank-row">
+          <span class="k">Ref 1</span>
+          <span class="v acc">
+            <span id="bankRef1"></span>
+            <button type="button" class="copy" data-copy="bankRef1">Salin</button>
+          </span>
+        </div>
+        <div class="bank-row">
+          <span class="k">Ref 2</span>
+          <span class="v acc">
+            <span id="bankRef2" class="ref2"></span>
+            <button type="button" class="copy" data-copy="bankRef2">Salin</button>
+          </span>
+        </div>
       </div>
+      <p class="hint ref-hint">Sila masukkan <strong>Ref 1</strong> dan <strong>Ref 2</strong> seperti di atas semasa membuat pindahan wang.</p>
 
       <h2><span class="step">3</span> Muat naik resit</h2>
 
@@ -491,29 +509,41 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
     $("bankNama").textContent = cfg.BANK.nama;
     $("bankNo").textContent = cfg.BANK.noAkaun;
     $("bankBank").textContent = cfg.BANK.bank;
+    $("bankRef1").textContent = cfg.BANK.ref1;
+    updateRef2();
     dropSubDefault = "Gambar (JPG/PNG) atau PDF, maksimum " + cfg.SAIZ_RESIT_MAKS_MB + " MB";
     $("dropSub").textContent = dropSubDefault;
   }
 
-  $("copyBtn").addEventListener("click", function () {
-    var btn = this;
-    var done = function () {
-      btn.textContent = "Disalin!";
-      setTimeout(function () { btn.textContent = "Salin"; }, 1500);
-    };
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(cfg.BANK.noAkaun).then(done, fallbackCopy);
-    } else {
-      fallbackCopy();
-    }
-    function fallbackCopy() {
-      var t = document.createElement("textarea");
-      t.value = cfg.BANK.noAkaun;
-      document.body.appendChild(t);
-      t.select();
-      try { document.execCommand("copy"); done(); } catch (e) { /* abaikan */ }
-      document.body.removeChild(t);
-    }
+  // Ref 2 = nama sekolah yang ditaip (huruf besar).
+  function updateRef2() {
+    var v = $("sekolah").value.replace(/\s+/g, " ").trim().toUpperCase();
+    $("bankRef2").textContent = v || "NAMA SEKOLAH";
+    $("bankRef2").classList.toggle("placeholder", !v);
+  }
+  $("sekolah").addEventListener("input", updateRef2);
+
+  form.querySelectorAll(".copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var text = $(btn.getAttribute("data-copy")).textContent;
+      var done = function () {
+        btn.textContent = "Disalin!";
+        setTimeout(function () { btn.textContent = "Salin"; }, 1500);
+      };
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(done, fallbackCopy);
+      } else {
+        fallbackCopy();
+      }
+      function fallbackCopy() {
+        var t = document.createElement("textarea");
+        t.value = text;
+        document.body.appendChild(t);
+        t.select();
+        try { document.execCommand("copy"); done(); } catch (e) { /* abaikan */ }
+        document.body.removeChild(t);
+      }
+    });
   });
 
   // ---------- Muat senarai lencana ----------
@@ -819,6 +849,7 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
     $("dropSub").textContent = dropSubDefault;
     drop.classList.remove("has-file");
     updateTotal();
+    updateRef2();
   }
 
   $("againBtn").addEventListener("click", function () {

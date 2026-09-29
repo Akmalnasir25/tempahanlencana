@@ -15,10 +15,10 @@ Guru mengisi:
 | Nama akaun | PERSEKUTUAN PENGAKAP MALAYSIA DAERAH KINTA UTARA |
 | No. akaun | 558172816191 |
 | Bank | MAYBANK |
-| Ref 1 | ID lencana yang dipilih, cth. `AKPN26` (diisi automatik) |
+| Ref 1 | ID lencana yang dipilih, cth. `LencanaAKPNPKK26` (diisi automatik) |
 | Ref 2 | NAMA SEKOLAH (diisi automatik daripada nama sekolah yang ditaip) |
 
-Selepas tempahan berjaya, guru menerima nombor rujukan (contoh `AKPN26-0001`).
+Selepas tempahan berjaya, guru menerima nombor rujukan (contoh `LencanaAKPNPKK26-0001`).
 
 ## Struktur fail
 
@@ -40,11 +40,11 @@ Selepas tempahan berjaya, guru menerima nombor rujukan (contoh `AKPN26-0001`).
 6. Tekan **Save**.
 7. Pilih fungsi `setup` di bar atas, tekan **Run**, dan benarkan akses (Sheet, Drive).
    Ini akan mencipta:
-   - Tab **Senarai Lencana**, yang sudah berisi lencana AKPN 2026 (RM 5.00, tutup 2/10/2026 jam 11:00 malam)
+   - Tab **Senarai Lencana**, yang sudah berisi lencana `LencanaAKPNPKK26` (AKPN 2026 RM 5.00, tutup 2/10/2026 jam 11:00 malam)
    - Tab **Tempahan**
    - Folder Drive **Resit Tempahan Lencana**
 8. Muat semula (refresh) Google Sheet. Menu baru **Lencana** akan muncul di bar menu.
-   Pilih **Lencana → Tukar / muat naik gambar lencana**, pilih AKPN26, dan muat naik `assets/lencana.jpg`.
+   Pilih **Lencana → Sunting / padam lencana**, pilih LencanaAKPNPKK26, dan muat naik `assets/lencana.jpg`.
 9. **Deploy → New deployment** → ikon gear → **Web app**:
    - Execute as: **Me**
    - Who has access: **Anyone**
@@ -91,7 +91,7 @@ Jika anda terlupa kata laluan, tetapkan semula melalui menu **Lencana → Tetapk
 
 **Sunting atau padam:** dalam paparan admin, buka tab **Urus lencana** (atau menu **Lencana → Sunting / padam lencana**), kemudian pilih lencana.
 
-- **Sunting:** nama, keterangan, harga, tarikh akhir, status *Aktif* dan gambar boleh diubah. ID tidak boleh ditukar kerana digunakan dalam no. rujukan tempahan.
+- **Sunting:** nama, keterangan, harga, tarikh akhir, status *Aktif* dan gambar boleh diubah. ID juga boleh ditukar selagi belum ada tempahan untuk lencana itu (ID digunakan dalam no. rujukan).
 - **Tutup tempahan tanpa memadam:** nyahtanda *Aktif* dan simpan. Lencana tidak lagi dipaparkan di borang.
 - **Padam:** lencana dibuang dari tab *Senarai Lencana* dan dari borang. Tempahan dan resit yang sudah diterima **tidak** dipadam, dan masih kelihatan dalam senarai tempahan.
 
@@ -99,7 +99,7 @@ Anda juga boleh menambah atau mengubah baris terus dalam tab **Senarai Lencana**
 
 | Lajur | Contoh | Nota |
 |---|---|---|
-| ID | `HPN26` | Pendek, tiada ruang. Digunakan sebagai Ref 1 bayaran, no. rujukan (`HPN26-0001`) dan pautan terus. |
+| ID | `LencanaHPN26` | 2-20 huruf/nombor, tiada ruang. Digunakan sebagai Ref 1 bayaran, no. rujukan (`LencanaHPN26-0001`) dan pautan terus. |
 | Nama Lencana | Hari Pengakap Negara 2026 | |
 | Keterangan | Semua unit | Pilihan |
 | Harga (RM) | 5 | Harga seunit |

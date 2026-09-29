@@ -212,8 +212,8 @@ button.btn.danger { background: var(--danger); color: #fff; }
       <form id="formTambah" class="narrow" novalidate>
         <div class="field">
           <label for="tId">ID lencana</label>
-          <input type="text" id="tId" maxlength="15" placeholder="cth: HPN26" autocapitalize="characters">
-          <p class="help">Pendek, huruf/nombor tanpa ruang. Digunakan sebagai Ref 1 bayaran dan no. rujukan (cth. HPN26-0001).</p>
+          <input type="text" id="tId" maxlength="20" placeholder="cth: LencanaHPN26" autocapitalize="off">
+          <p class="help">2-20 huruf/nombor tanpa ruang. Digunakan sebagai Ref 1 bayaran dan no. rujukan (cth. LencanaHPN26-0001).</p>
         </div>
         <div class="field">
           <label for="tNama">Nama lencana</label>
@@ -256,6 +256,11 @@ button.btn.danger { background: var(--danger); color: #fff; }
           <p class="help" id="uInfo"></p>
         </div>
         <div id="uBorang" class="hidden">
+          <div class="field">
+            <label for="uIdBaru">ID lencana</label>
+            <input type="text" id="uIdBaru" maxlength="20" autocapitalize="off">
+            <p class="help" id="uIdHelp"></p>
+          </div>
           <div class="field">
             <label for="uNama">Nama lencana</label>
             <input type="text" id="uNama" maxlength="150">
@@ -634,7 +639,7 @@ button.btn.danger { background: var(--danger); color: #fff; }
 
   // ---------- Tambah lencana ----------
   $("tId").addEventListener("input", function () {
-    this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    this.value = this.value.replace(/[^A-Za-z0-9]/g, "");
   });
 
   $("formTambah").addEventListener("submit", function (e) {
@@ -648,7 +653,7 @@ button.btn.danger { background: var(--danger); color: #fff; }
       tarikh: $("tTarikh").value,
       masa: $("tMasa").value || "23:00",
     };
-    if (!/^[A-Z0-9]{2,15}$/.test(d.id)) return mesej("tMsg", "ID mesti 2-15 huruf/nombor tanpa ruang.");
+    if (!/^[A-Za-z0-9]{2,20}$/.test(d.id)) return mesej("tMsg", "ID mesti 2-20 huruf/nombor tanpa ruang.");
     if (d.nama.length < 3) return mesej("tMsg", "Sila masukkan nama lencana.");
     if (!(Number(d.harga) > 0)) return mesej("tMsg", "Sila masukkan harga seunit.");
     if (!d.tarikh) return mesej("tMsg", "Sila pilih tarikh akhir.");
@@ -703,10 +708,18 @@ button.btn.danger { background: var(--danger); color: #fff; }
     $("uAktif").checked = !!l.aktif;
     $("uGambar").value = "";
     $("uPreview").classList.add("hidden");
-    $("uInfo").textContent = "ID: " + l.id + " (tidak boleh ditukar) · " + bilTempahan(l.id) +
-      " tempahan · " + status(l)[0] + (l.adaGambar ? "" : " · tiada gambar");
+    var n = bilTempahan(l.id);
+    $("uIdBaru").value = l.id;
+    $("uIdBaru").disabled = n > 0;
+    $("uIdHelp").textContent = n > 0
+      ? "ID tidak boleh ditukar kerana sudah ada tempahan (ID digunakan dalam no. rujukan)."
+      : "2-20 huruf/nombor tanpa ruang. Digunakan sebagai Ref 1 bayaran dan no. rujukan.";
+    $("uInfo").textContent = n + " tempahan · " + status(l)[0] + (l.adaGambar ? "" : " · tiada gambar");
   }
   $("uId").addEventListener("change", function () { $("uMsg").textContent = ""; isiUrus(); });
+  $("uIdBaru").addEventListener("input", function () {
+    this.value = this.value.replace(/[^A-Za-z0-9]/g, "");
+  });
 
   $("formUrus").addEventListener("submit", function (e) {
     e.preventDefault();
@@ -719,7 +732,9 @@ button.btn.danger { background: var(--danger); color: #fff; }
       tarikh: $("uTarikh").value,
       masa: $("uMasa").value || "23:00",
       aktif: $("uAktif").checked,
+      idBaru: $("uIdBaru").value.trim(),
     };
+    if (!/^[A-Za-z0-9]{2,20}$/.test(d.idBaru)) return mesej("uMsg", "ID mesti 2-20 huruf/nombor tanpa ruang.");
     if (d.nama.length < 3) return mesej("uMsg", "Sila masukkan nama lencana.");
     if (!(Number(d.harga) > 0)) return mesej("uMsg", "Sila masukkan harga seunit.");
     if (!d.tarikh) return mesej("uMsg", "Sila pilih tarikh akhir.");
@@ -730,9 +745,12 @@ button.btn.danger { background: var(--danger); color: #fff; }
     var file = $("uGambar").files[0];
     (file ? sediaGambar(file) : Promise.resolve(null)).then(function (g) {
       if (g) d.gambar = g;
-      api("kemaskiniLencana", [l.id, d], function () {
+      api("kemaskiniLencana", [l.id, d], function (r) {
         btn.disabled = false;
-        mesej("uMsg", "Lencana " + l.id + " berjaya dikemas kini.", true);
+        // Kekalkan pilihan walaupun ID ditukar.
+        $("uId").selectedOptions[0].value = r.id;
+        mesej("uMsg", "Lencana " + r.id + " berjaya dikemas kini." +
+          (r.id !== l.id ? " (ID ditukar daripada " + l.id + ")" : ""), true);
         muat();
       }, function (err) { btn.disabled = false; if (err) mesej("uMsg", errMsg(err)); });
     }, function (err) { btn.disabled = false; mesej("uMsg", err.message); });

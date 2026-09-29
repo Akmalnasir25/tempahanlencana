@@ -34,7 +34,7 @@ var HEADERS_TEMPAHAN = [
 
 // Lencana pertama yang dimasukkan semasa setup(). Isi lajur Gambar dengan pautan Drive kemudian.
 var CONTOH_LENCANA = [
-  'AKPN26', 'Anugerah Ketua Pengakap Negara 2026', 'Rambu Pengakap Kanak-kanak',
+  'LencanaAKPNPKK26', 'Anugerah Ketua Pengakap Negara 2026', 'Rambu Pengakap Kanak-kanak',
   5, new Date('2026-10-02T23:00:00+08:00'), '', 'YA',
 ];
 
@@ -183,7 +183,7 @@ function gambarSrc_(v) {
   }
 }
 
-/** No. rujukan berjujukan bagi setiap lencana, cth. AKPN26-0001. Mesti dipanggil dalam lock. */
+/** No. rujukan berjujukan bagi setiap lencana, cth. LencanaAKPNPKK26-0001. Mesti dipanggil dalam lock. */
 function nextRujukan_(lencanaId) {
   var props = PropertiesService.getScriptProperties();
   var key = 'SEQ_' + lencanaId;
@@ -324,6 +324,21 @@ function bacaInputLencana_(d) {
   return v;
 }
 
+/** ID lencana: 2-20 huruf/nombor tanpa ruang. Digunakan sebagai Ref 1 dan no. rujukan. */
+function semakId_(id) {
+  id = String(id || '').trim();
+  if (!/^[A-Za-z0-9]{2,20}$/.test(id)) throw new Error('ID mesti 2-20 huruf/nombor tanpa ruang.');
+  return id;
+}
+
+/** Bilangan tempahan dalam tab Tempahan bagi ID lencana. */
+function bilTempahan_(id) {
+  var sheet = getTempahanSheet_();
+  if (sheet.getLastRow() < 2) return 0;
+  return sheet.getRange(2, 3, sheet.getLastRow() - 1, 1).getValues()
+    .filter(function (r) { return String(r[0]).trim() === id; }).length;
+}
+
 /** Nombor baris (dalam tab Senarai Lencana) bagi ID lencana, atau 0 jika tiada. */
 function cariBaris_(id) {
   var sheet = getLencanaSheet_();
@@ -353,8 +368,7 @@ function semuaLencana_() {
 /** Dipanggil oleh paparan admin: tambah satu baris lencana baru. */
 function tambahLencana(token, d) {
   pastikanAdmin_(token);
-  var id = String(d.id || '').trim().toUpperCase();
-  if (!/^[A-Z0-9]{2,15}$/.test(id)) throw new Error('ID mesti 2-15 huruf/nombor tanpa ruang.');
+  var id = semakId_(d.id);
   var v = bacaInputLencana_(d);
   if (!d.gambar) throw new Error('Sila pilih gambar lencana.');
 
@@ -372,7 +386,7 @@ function tambahLencana(token, d) {
 
 /**
  * Dipanggil oleh paparan admin: sunting butiran lencana sedia ada.
- * ID tidak boleh ditukar kerana digunakan dalam no. rujukan tempahan.
+ * ID hanya boleh ditukar selagi belum ada tempahan (ID digunakan dalam no. rujukan).
  * Gambar hanya ditukar jika gambar baru dihantar.
  */
 function kemaskiniLencana(token, id, d) {
@@ -384,6 +398,15 @@ function kemaskiniLencana(token, id, d) {
     var row = cariBaris_(id);
     if (!row) throw new Error('Lencana "' + id + '" tidak dijumpai.');
     var sheet = getLencanaSheet_();
+    var idBaru = d.idBaru ? semakId_(d.idBaru) : id;
+    if (idBaru !== id) {
+      var n = bilTempahan_(id);
+      if (n) throw new Error('ID tidak boleh ditukar kerana sudah ada ' + n + ' tempahan untuk lencana ini.');
+      var lain = cariBaris_(idBaru);
+      if (lain && lain !== row) throw new Error('ID "' + idBaru + '" sudah digunakan. Sila guna ID lain.');
+      sheet.getRange(row, 1).setValue(idBaru);
+      id = idBaru;
+    }
     sheet.getRange(row, 2, 1, 4).setValues([[v.nama, v.keterangan, v.harga, v.tarikhAkhir]]);
     sheet.getRange(row, 7).setValue(d.aktif ? 'YA' : 'TIDAK');
     if (d.gambar) sheet.getRange(row, 6).setValue(simpanGambar_(id, d.gambar));

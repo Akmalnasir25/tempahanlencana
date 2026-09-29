@@ -38,6 +38,7 @@ header {
 }
 header h1 { margin: 0; font-size: 1.1rem; }
 header a { color: var(--gold); font-weight: 600; text-decoration: none; }
+header a.back { display: inline-block; color: rgba(255, 255, 255, .75); font-size: .8rem; margin-bottom: 2px; }
 .tabs { display: flex; gap: 4px; padding: 12px 16px 0; overflow-x: auto; }
 .tab {
   border: 0;
@@ -57,7 +58,7 @@ main { padding: 0 16px 24px; }
 
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .toolbar select, .toolbar input { flex: 1 1 180px; }
-select, input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="search"] {
+select, input[type="text"], input[type="password"], input[type="number"], input[type="date"], input[type="time"], input[type="search"] {
   width: 100%;
   padding: 10px 12px;
   font: inherit;
@@ -122,18 +123,41 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
 .msg.err { color: var(--danger); }
 .msg:empty { display: none; }
 .narrow { max-width: 460px; }
+.header-actions { display: flex; gap: 14px; align-items: center; }
+.header-actions button { background: none; border: 0; color: #fff; font: inherit; font-weight: 600; cursor: pointer; padding: 0; opacity: .85; }
+.login { max-width: 360px; margin: 40px auto; background: var(--card); border-radius: 14px; padding: 24px; box-shadow: 0 6px 24px rgba(11, 26, 92, .08); }
+.login h2 { margin-top: 0; }
+.login .btn { width: 100%; margin-top: 4px; }
   </style>
 </head>
 <body data-mode="<?= mode ?>">
   <header>
-    <h1>Admin Tempahan Lencana</h1>
-    <a id="sheetLink" class="hidden" target="_blank" rel="noopener">Buka Google Sheet ↗</a>
+    <div>
+      <a id="balikBorang" class="back hidden" href="<?= url ?>" target="_top">← Borang tempahan</a>
+      <h1>Admin Tempahan Lencana</h1>
+    </div>
+    <div class="header-actions">
+      <a id="sheetLink" class="hidden" target="_blank" rel="noopener">Buka Google Sheet ↗</a>
+      <button type="button" id="logKeluar" class="hidden">Log keluar</button>
+    </div>
   </header>
 
+  <form class="login hidden" id="login" novalidate>
+    <h2>Log masuk admin</h2>
+    <div class="field">
+      <label for="kataLaluan">Kata laluan</label>
+      <input type="password" id="kataLaluan" autocomplete="current-password" autofocus>
+    </div>
+    <button type="submit" class="btn" id="loginBtn">Log masuk</button>
+    <p class="msg err" id="loginMsg"></p>
+  </form>
+
+  <div id="app" class="hidden">
   <nav class="tabs">
     <button type="button" class="tab" data-tab="tempahan">Senarai tempahan</button>
     <button type="button" class="tab" data-tab="tambah">Tambah lencana</button>
     <button type="button" class="tab" data-tab="gambar">Gambar lencana</button>
+    <button type="button" class="tab" data-tab="tetapan">Kata laluan</button>
   </nav>
 
   <main>
@@ -233,7 +257,29 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
         <p class="msg" id="gMsg"></p>
       </form>
     </section>
+    <!-- ===== Tukar kata laluan ===== -->
+    <section class="panel hidden" id="tab-tetapan">
+      <form id="formKL" class="narrow" novalidate>
+        <div class="field">
+          <label for="klLama">Kata laluan semasa</label>
+          <input type="password" id="klLama" autocomplete="current-password">
+          <p class="help">Biarkan kosong jika kata laluan belum pernah ditetapkan.</p>
+        </div>
+        <div class="field">
+          <label for="klBaru">Kata laluan baru</label>
+          <input type="password" id="klBaru" autocomplete="new-password" minlength="6">
+          <p class="help">Sekurang-kurangnya 6 aksara.</p>
+        </div>
+        <div class="field">
+          <label for="klSahkan">Sahkan kata laluan baru</label>
+          <input type="password" id="klSahkan" autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn" id="klHantar">Tukar kata laluan</button>
+        <p class="msg" id="klMsg"></p>
+      </form>
+    </section>
   </main>
+  </div>
 
   <script>
 (function () {
@@ -241,6 +287,8 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
 
   var MODE = document.body.getAttribute("data-mode");
   var $ = function (id) { return document.getElementById(id); };
+  // Pautan balik ke borang hanya dalam web app (bukan dalam dialog Google Sheet).
+  if ($("balikBorang").getAttribute("href")) $("balikBorang").classList.remove("hidden");
   var data = { lencana: [], tempahan: [] };
 
   function rm(n) { return Number(n).toFixed(2); }
@@ -263,12 +311,75 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
     return m.replace(/^Error:\s*/, "") || "Ralat. Sila cuba lagi.";
   }
 
+  // ---------- Log masuk ----------
+  var token = null;
+  try { token = sessionStorage.getItem("adminToken"); } catch (e) { /* abaikan */ }
+
+  function simpanToken(t) {
+    token = t;
+    try {
+      if (t) sessionStorage.setItem("adminToken", t); else sessionStorage.removeItem("adminToken");
+    } catch (e) { /* abaikan */ }
+    $("logKeluar").classList.toggle("hidden", !t);
+  }
+  simpanToken(token);
+
+  function tunjukLogin() {
+    simpanToken(null);
+    $("app").classList.add("hidden");
+    $("login").classList.remove("hidden");
+    $("kataLaluan").focus();
+  }
+
+  // Panggil fungsi pelayan admin dengan token sesi. Jika sesi tamat, papar skrin log masuk.
+  function api(fn, args, onOk, onFail) {
+    google.script.run
+      .withSuccessHandler(onOk)
+      .withFailureHandler(function (e) {
+        if (/PERLU_LOGIN/.test(errMsg(e))) {
+          var adaSesi = !!token;
+          tunjukLogin();
+          $("loginMsg").textContent = adaSesi ? "Sesi telah tamat. Sila log masuk semula." : "";
+          if (onFail) onFail(null);
+          return;
+        }
+        if (onFail) onFail(e);
+      })[fn].apply(null, [token].concat(args));
+  }
+
+  $("login").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var btn = $("loginBtn");
+    $("loginMsg").textContent = "";
+    if (!$("kataLaluan").value) { $("loginMsg").textContent = "Sila masukkan kata laluan."; return; }
+    btn.disabled = true;
+    google.script.run
+      .withSuccessHandler(function (t) {
+        btn.disabled = false;
+        $("kataLaluan").value = "";
+        simpanToken(t);
+        $("login").classList.add("hidden");
+        muat();
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        $("loginMsg").textContent = errMsg(err);
+      })
+      .adminLogin($("kataLaluan").value);
+  });
+
+  $("logKeluar").addEventListener("click", function () {
+    google.script.run.adminLogout(token);
+    simpanToken(null);
+    tunjukLogin();
+  });
+
   // ---------- Tab ----------
   function bukaTab(name) {
     document.querySelectorAll(".tab").forEach(function (t) {
       t.classList.toggle("active", t.getAttribute("data-tab") === name);
     });
-    ["tempahan", "tambah", "gambar"].forEach(function (n) { $("tab-" + n).classList.toggle("hidden", n !== name); });
+    ["tempahan", "tambah", "gambar", "tetapan"].forEach(function (n) { $("tab-" + n).classList.toggle("hidden", n !== name); });
   }
   document.querySelectorAll(".tab").forEach(function (t) {
     t.addEventListener("click", function () { bukaTab(t.getAttribute("data-tab")); });
@@ -279,22 +390,17 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
   function muat() {
     $("tempahanMsg").textContent = "";
     $("muatSemula").disabled = true;
-    google.script.run
-      .withSuccessHandler(function (d) {
+    api("adminTempahan", [], function (d) {
         $("muatSemula").disabled = false;
+        $("app").classList.remove("hidden");
         data = d;
         if (d.sheetUrl) { $("sheetLink").href = d.sheetUrl; $("sheetLink").classList.remove("hidden"); }
         isiPilihan();
         papar();
-      })
-      .withFailureHandler(function (e) {
+      }, function (e) {
         $("muatSemula").disabled = false;
-        var m = errMsg(e);
-        $("tempahanMsg").textContent = /kebenaran/i.test(m)
-          ? "Tiada kebenaran. Paparan ini hanya untuk pemilik/editor Google Sheet. Pastikan anda log masuk dengan akaun Google yang betul."
-          : m;
-      })
-      .adminTempahan();
+        if (e) { $("app").classList.remove("hidden"); $("tempahanMsg").textContent = errMsg(e); }
+      });
   }
   $("muatSemula").addEventListener("click", muat);
 
@@ -500,17 +606,14 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
     mesej("tMsg", "Memuat naik…", true);
     sediaGambar($("tGambar").files[0]).then(function (g) {
       d.gambar = g;
-      google.script.run
-        .withSuccessHandler(function (r) {
+      api("tambahLencana", [d], function (r) {
           btn.disabled = false;
           $("formTambah").reset();
           $("tMasa").value = "23:00";
           $("tPreview").classList.add("hidden");
           mesej("tMsg", "Lencana " + r.id + " (" + r.nama + ") berjaya ditambah dan kini dibuka untuk tempahan.", true);
           muat();
-        })
-        .withFailureHandler(function (err) { btn.disabled = false; mesej("tMsg", errMsg(err)); })
-        .tambahLencana(d);
+        }, function (err) { btn.disabled = false; if (err) mesej("tMsg", errMsg(err)); });
     }, function (err) { btn.disabled = false; mesej("tMsg", err.message); });
   });
 
@@ -523,17 +626,30 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
     btn.disabled = true;
     mesej("gMsg", "Memuat naik…", true);
     sediaGambar($("gGambar").files[0]).then(function (g) {
-      google.script.run
-        .withSuccessHandler(function () {
+      api("tukarGambar", [id, g], function () {
           btn.disabled = false;
           $("formGambar").reset();
           $("gId").value = id;
           $("gPreview").classList.add("hidden");
           mesej("gMsg", "Gambar lencana " + id + " berjaya dikemas kini.", true);
-        })
-        .withFailureHandler(function (err) { btn.disabled = false; mesej("gMsg", errMsg(err)); })
-        .tukarGambar(id, g);
+        }, function (err) { btn.disabled = false; if (err) mesej("gMsg", errMsg(err)); });
     }, function (err) { btn.disabled = false; mesej("gMsg", err.message); });
+  });
+
+  // ---------- Tukar kata laluan ----------
+  $("formKL").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var baru = $("klBaru").value;
+    if (baru.length < 6) return mesej("klMsg", "Kata laluan baru mesti sekurang-kurangnya 6 aksara.");
+    if (baru !== $("klSahkan").value) return mesej("klMsg", "Pengesahan kata laluan tidak sama.");
+    var btn = $("klHantar");
+    btn.disabled = true;
+    api("tukarKataLaluan", [$("klLama").value, baru], function (t) {
+      btn.disabled = false;
+      $("formKL").reset();
+      simpanToken(t);
+      mesej("klMsg", "Kata laluan berjaya ditukar. Sesi admin lain telah dilog keluar.", true);
+    }, function (err) { btn.disabled = false; if (err) mesej("klMsg", errMsg(err)); });
   });
 
   muat();

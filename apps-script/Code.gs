@@ -43,11 +43,14 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.admin !== undefined) {
     var t = HtmlService.createTemplateFromFile('Admin');
     t.mode = 'tempahan';
+    t.url = ScriptApp.getService().getUrl();
     return t.evaluate()
       .setTitle('Admin Tempahan Lencana')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
   }
-  return HtmlService.createHtmlOutputFromFile('Index')
+  var borang = HtmlService.createTemplateFromFile('Index');
+  borang.url = ScriptApp.getService().getUrl();
+  return borang.evaluate()
     .setTitle('Tempahan Lencana Pengakap')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
@@ -267,6 +270,8 @@ function onOpen() {
     .addItem('Paparan admin (senarai tempahan)', 'menuPaparanAdmin')
     .addItem('Tambah lencana baru', 'menuTambahLencana')
     .addItem('Tukar / muat naik gambar lencana', 'menuTukarGambar')
+    .addSeparator()
+    .addItem('Tetapkan kata laluan admin', 'menuKataLaluan')
     .addToUi();
 }
 
@@ -277,13 +282,13 @@ function menuTukarGambar() { bukaAdmin_('gambar', 'Tukar / muat naik gambar lenc
 function bukaAdmin_(mode, tajuk) {
   var t = HtmlService.createTemplateFromFile('Admin');
   t.mode = mode;
+  t.url = '';
   var html = t.evaluate().setWidth(mode === 'tempahan' ? 1000 : 480).setHeight(680);
   SpreadsheetApp.getUi().showModelessDialog(html, tajuk);
 }
 
-/** Dipanggil oleh dialog admin: senarai semua lencana dalam Sheet. */
-function adminSenarai() {
-  pastikanAdmin_();
+/** ID dan nama semua lencana dalam Sheet (termasuk yang tidak aktif). */
+function senaraiId_() {
   var sheet = getLencanaSheet_();
   if (sheet.getLastRow() < 2) return [];
   return sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues()
@@ -292,8 +297,8 @@ function adminSenarai() {
 }
 
 /** Dipanggil oleh paparan admin: semua lencana dan tempahan. */
-function adminTempahan() {
-  pastikanAdmin_();
+function adminTempahan(token) {
+  pastikanAdmin_(token);
   var lencana = getLencana_().map(function (l) {
     return { id: l.id, nama: l.nama, harga: l.harga, tarikhAkhir: l.tarikhAkhir.toISOString(), aktif: l.aktif };
   });
@@ -312,8 +317,8 @@ function adminTempahan() {
 }
 
 /** Dipanggil oleh dialog admin: tambah satu baris lencana baru. */
-function tambahLencana(d) {
-  pastikanAdmin_();
+function tambahLencana(token, d) {
+  pastikanAdmin_(token);
   var id = String(d.id || '').trim().toUpperCase();
   var nama = clean_(d.nama, 150);
   var keterangan = clean_(d.keterangan, 200);
@@ -329,7 +334,7 @@ function tambahLencana(d) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    var ada = adminSenarai().some(function (l) { return l.id.toUpperCase() === id; });
+    var ada = senaraiId_().some(function (l) { return l.id.toUpperCase() === id; });
     if (ada) throw new Error('ID "' + id + '" sudah digunakan. Sila guna ID lain.');
     var url = simpanGambar_(id, d.gambar);
     getLencanaSheet_().appendRow([id, nama, keterangan, harga, tarikhAkhir, url, 'YA']);
@@ -340,8 +345,8 @@ function tambahLencana(d) {
 }
 
 /** Dipanggil oleh dialog admin: tukar gambar bagi lencana sedia ada. */
-function tukarGambar(id, gambar) {
-  pastikanAdmin_();
+function tukarGambar(token, id, gambar) {
+  pastikanAdmin_(token);
   if (!gambar) throw new Error('Sila pilih gambar lencana.');
   var sheet = getLencanaSheet_();
   var ids = sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 1), 1).getValues();
@@ -368,14 +373,100 @@ function simpanGambar_(id, g) {
   return folder.createFile(Utilities.newBlob(bytes, jenis, id + ext)).getUrl();
 }
 
+// =====================================================================
+// Kata laluan admin
+// =====================================================================
+
+var SESI_SAAT = 6 * 60 * 60;   // sesi log masuk tamat selepas 6 jam
+var CUBAAN_MAKS = 10;          // cubaan salah sebelum log masuk dikunci
+var KUNCI_SAAT = 15 * 60;      // tempoh kunci selepas terlalu banyak cubaan
+
+/** Log masuk paparan admin. Pulangkan token sesi. */
+function adminLogin(kataLaluan) {
+  var cache = CacheService.getScriptCache();
+  var props = PropertiesService.getScriptProperties();
+  var gagal = Number(cache.get('LOGIN_GAGAL') || 0);
+  if (gagal >= CUBAAN_MAKS) throw new Error('Terlalu banyak cubaan salah. Sila cuba lagi selepas 15 minit.');
+
+  var hash = props.getProperty('ADMIN_HASH');
+  if (!hash) {
+    throw new Error('Kata laluan admin belum ditetapkan. Tetapkan melalui menu Lencana → Tetapkan kata laluan admin dalam Google Sheet.');
+  }
+  if (hash_(String(kataLaluan || ''), props.getProperty('ADMIN_SALT')) !== hash) {
+    cache.put('LOGIN_GAGAL', String(gagal + 1), KUNCI_SAAT);
+    Utilities.sleep(1000);
+    throw new Error('Kata laluan salah.');
+  }
+  var token = Utilities.getUuid();
+  cache.put('SESI_' + token, props.getProperty('ADMIN_VER'), SESI_SAAT);
+  return token;
+}
+
+function adminLogout(token) {
+  if (token) CacheService.getScriptCache().remove('SESI_' + token);
+}
+
+/** Tukar kata laluan dari paparan admin. Semua sesi lain akan dilog keluar. */
+function tukarKataLaluan(token, lama, baru) {
+  pastikanAdmin_(token);
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('ADMIN_HASH') &&
+      hash_(String(lama || ''), props.getProperty('ADMIN_SALT')) !== props.getProperty('ADMIN_HASH')) {
+    throw new Error('Kata laluan semasa salah.');
+  }
+  setKataLaluan_(baru);
+  // Sesi semasa kekal log masuk.
+  var t = Utilities.getUuid();
+  CacheService.getScriptCache().put('SESI_' + t, props.getProperty('ADMIN_VER'), SESI_SAAT);
+  return t;
+}
+
+/** Menu dalam Google Sheet untuk menetapkan kata laluan (hanya editor Sheet boleh). */
+function menuKataLaluan() {
+  var ui = SpreadsheetApp.getUi();
+  var r = ui.prompt('Tetapkan kata laluan admin',
+    'Masukkan kata laluan baru untuk paparan admin (sekurang-kurangnya 6 aksara):',
+    ui.ButtonSet.OK_CANCEL);
+  if (r.getSelectedButton() !== ui.Button.OK) return;
+  try {
+    setKataLaluan_(r.getResponseText());
+    ui.alert('Kata laluan admin telah ditetapkan. Semua sesi admin yang lama telah dilog keluar.');
+  } catch (e) {
+    ui.alert(e.message);
+  }
+}
+
+function setKataLaluan_(k) {
+  k = String(k || '');
+  if (k.length < 6) throw new Error('Kata laluan mesti sekurang-kurangnya 6 aksara.');
+  var props = PropertiesService.getScriptProperties();
+  var salt = Utilities.getUuid();
+  props.setProperties({
+    ADMIN_SALT: salt,
+    ADMIN_HASH: hash_(k, salt),
+    ADMIN_VER: Utilities.getUuid(), // membatalkan semua sesi lama
+  });
+}
+
+function hash_(k, salt) {
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + '|' + k, Utilities.Charset.UTF_8);
+  return Utilities.base64Encode(bytes);
+}
+
 /**
- * Fungsi admin hanya boleh digunakan oleh editor Sheet ini.
- * (Pengguna borang awam tidak log masuk, jadi emel mereka kosong.)
+ * Fungsi admin hanya boleh digunakan dengan sesi log masuk yang sah,
+ * atau oleh editor Google Sheet ini (contohnya melalui menu Lencana).
  */
-function pastikanAdmin_() {
+function pastikanAdmin_(token) {
+  if (token) {
+    var ver = CacheService.getScriptCache().get('SESI_' + token);
+    if (ver && ver === PropertiesService.getScriptProperties().getProperty('ADMIN_VER')) return;
+  }
   var email = Session.getActiveUser().getEmail();
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var ok = !!email && (email === Session.getEffectiveUser().getEmail() ||
-    ss.getEditors().some(function (u) { return u.getEmail() === email; }));
-  if (!ok) throw new Error('Tiada kebenaran.');
+  if (email) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (email === Session.getEffectiveUser().getEmail() ||
+        ss.getEditors().some(function (u) { return u.getEmail() === email; })) return;
+  }
+  throw new Error('PERLU_LOGIN');
 }

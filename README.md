@@ -68,11 +68,22 @@ Ia juga boleh ditapis mengikut lencana dan dicari mengikut nama sekolah.
 
 Cara membukanya:
 
-- **Komputer**: dalam Google Sheet, pilih **Lencana → Paparan admin (senarai tempahan)**.
-- **Telefon / mana-mana browser**: buka Web app URL dengan `?admin` di hujung, contohnya `https://script.google.com/macros/s/XXXX/exec?admin`. Anda mesti log masuk dengan akaun Google pemilik Sheet.
+- **Dari borang tempahan**: tekan butang **🔒 Admin** di penjuru kanan atas, kemudian masukkan kata laluan admin. Cara ini sesuai untuk telefon.
+- **Dari Google Sheet (komputer)**: pilih **Lencana → Paparan admin (senarai tempahan)**. Editor Sheet tidak perlu kata laluan.
 
-Hanya pemilik dan editor Google Sheet boleh melihat data. Orang lain yang membuka pautan `?admin` akan mendapat mesej "Tiada kebenaran".
-Editor selain pemilik perlu menggunakan menu dalam Google Sheet. Pautan `?admin` hanya mengenali akaun pemilik.
+### Kata laluan admin
+
+1. Tetapkan kata laluan kali pertama dalam Google Sheet: **Lencana → Tetapkan kata laluan admin** (sekurang-kurangnya 6 aksara).
+2. Selepas itu, kata laluan boleh ditukar dalam paparan admin, di tab **Kata laluan**.
+
+Ciri keselamatan:
+
+- Sesi log masuk tamat selepas 6 jam.
+- Selepas 10 cubaan salah, log masuk dikunci selama 15 minit.
+- Menukar kata laluan akan melog keluar semua sesi admin yang lain.
+- Kata laluan disimpan dalam bentuk hash (SHA-256) dalam Script Properties, bukan dalam kod atau Sheet.
+
+Jika anda terlupa kata laluan, tetapkan semula melalui menu **Lencana → Tetapkan kata laluan admin**.
 
 ## Tambah tempahan lencana baru
 

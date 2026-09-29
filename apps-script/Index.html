@@ -30,12 +30,26 @@ body {
 }
 
 .hero {
+  position: relative;
   background: radial-gradient(circle at 50% 0%, #1d3bb8 0%, var(--navy-deep) 70%);
   color: #fff;
   text-align: center;
-  padding: 28px 16px 48px;
+  padding: 44px 16px 48px;
   border-bottom: 4px solid var(--gold);
 }
+.admin-link {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  color: rgba(255, 255, 255, .75);
+  font-size: .8rem;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: 999px;
+}
+.admin-link:hover { color: var(--gold); border-color: var(--gold); }
 .eyebrow {
   margin: 0;
   color: var(--gold);
@@ -322,6 +336,7 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
 </head>
 <body>
   <header class="hero">
+    <a class="admin-link" href="<?= url ?>?admin" target="_top">🔒 Admin</a>
     <p class="eyebrow">Pengakap Daerah Kinta Utara</p>
     <h1>Borang Tempahan Lencana</h1>
     <p class="sub">Tempahan mengikut sekolah</p>

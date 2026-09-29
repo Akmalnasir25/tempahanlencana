@@ -2,21 +2,47 @@
   "use strict";
 
   var cfg = window.CONFIG;
-  var deadline = new Date(cfg.TARIKH_AKHIR).getTime();
   var maxBytes = cfg.SAIZ_RESIT_MAKS_MB * 1024 * 1024;
+  var BULAN = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai",
+    "Ogos", "September", "Oktober", "November", "Disember"];
 
   var $ = function (id) { return document.getElementById(id); };
+  var show = function (id, on) { $(id).classList.toggle("hidden", !on); };
   var form = $("form");
   var submitBtn = $("submitBtn");
   var formMsg = $("formMsg");
   var fileInput = $("resit");
   var drop = $("drop");
 
+  var senarai = [];   // semua lencana aktif dari Google Sheet
+  var lencana = null; // lencana yang sedang ditempah
+  var timer = null;
+
+  // ---------- Utiliti ----------
+  function rm(n) { return "RM " + Number(n).toFixed(2); }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+
+  // Format tarikh dalam waktu Malaysia, cth. "2 Oktober 2026, 11:00 malam".
+  function formatTarikh(iso) {
+    var p = {};
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kuala_Lumpur", year: "numeric", month: "numeric", day: "numeric",
+      hour: "numeric", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(new Date(iso)).forEach(function (x) { p[x.type] = x.value; });
+    var h = Number(p.hour);
+    var waktu = h < 12 ? "pagi" : h < 14 ? "tengah hari" : h < 19 ? "petang" : "malam";
+    return Number(p.day) + " " + BULAN[Number(p.month) - 1] + " " + p.year + ", " +
+      (h % 12 || 12) + ":" + p.minute + " " + waktu;
+  }
+
+  function isClosed() { return !lencana || Date.now() > new Date(lencana.tarikhAkhir).getTime(); }
+
   // ---------- Maklumat bank ----------
   $("bankNama").textContent = cfg.BANK.nama;
   $("bankNo").textContent = cfg.BANK.noAkaun;
   $("bankBank").textContent = cfg.BANK.bank;
-  $("dropSub").textContent = "Gambar (JPG/PNG) atau PDF, maksimum " + cfg.SAIZ_RESIT_MAKS_MB + " MB";
+  var dropSubDefault = "Gambar (JPG/PNG) atau PDF, maksimum " + cfg.SAIZ_RESIT_MAKS_MB + " MB";
+  $("dropSub").textContent = dropSubDefault;
 
   $("copyBtn").addEventListener("click", function () {
     var btn = this;
@@ -39,11 +65,138 @@
     }
   });
 
-  // ---------- Tarikh akhir & kiraan detik ----------
-  function isClosed() { return Date.now() > deadline; }
+  // ---------- Muat senarai lencana ----------
+  function load() {
+    show("loading", true);
+    show("loadError", false);
+    if (!cfg.SCRIPT_URL) {
+      loadFailed("Borang belum disambungkan ke sistem (SCRIPT_URL kosong dalam config.js).");
+      return;
+    }
+    fetch(cfg.SCRIPT_URL)
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data.ok) throw new Error(data.error);
+        senarai = data.lencana || [];
+        show("loading", false);
+        route();
+      })
+      .catch(function (err) {
+        loadFailed(err && err.message && err.message !== "Failed to fetch" ? err.message : null);
+      });
+  }
 
+  function loadFailed(msg) {
+    show("loading", false);
+    show("loadError", true);
+    $("loadErrorMsg").textContent = msg || "Sila semak sambungan internet dan muat semula halaman.";
+  }
+
+  $("retryBtn").addEventListener("click", load);
+
+  // Pilih paparan berdasarkan ?lencana=ID dalam URL, atau terus buka jika hanya satu dibuka.
+  function route() {
+    var id = new URLSearchParams(location.search).get("lencana");
+    var dipilih = senarai.filter(function (l) { return l.id === id; })[0];
+    var dibuka = senarai.filter(function (l) { return l.dibuka; });
+
+    if (dipilih) return select(dipilih, false);
+    if (dibuka.length === 1 && senarai.length === 1) return select(dibuka[0], false);
+    if (!senarai.length) { show("empty", true); return; }
+    showChooser();
+  }
+
+  window.addEventListener("popstate", function () {
+    if (!senarai.length) return;
+    resetForm();
+    route();
+  });
+
+  // ---------- Senarai pilihan lencana ----------
+  function showChooser() {
+    lencana = null;
+    clearTimeout(timer);
+    ["badgeHead", "deadline", "closed", "form", "success"].forEach(function (id) { show(id, false); });
+
+    var list = $("badgeList");
+    list.innerHTML = "";
+    senarai
+      .slice()
+      .sort(function (a, b) { return (b.dibuka - a.dibuka) || a.tarikhAkhir.localeCompare(b.tarikhAkhir); })
+      .forEach(function (l) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "badge-card" + (l.dibuka ? "" : " is-closed");
+
+        var img = document.createElement("img");
+        img.src = l.gambar || "assets/lencana.jpg";
+        img.alt = "";
+        img.loading = "lazy";
+
+        var info = document.createElement("span");
+        info.className = "badge-card-info";
+        var nama = document.createElement("strong");
+        nama.textContent = l.nama;
+        var desc = document.createElement("span");
+        desc.className = "badge-card-desc";
+        desc.textContent = l.keterangan;
+        var meta = document.createElement("span");
+        meta.className = "badge-card-meta";
+        meta.textContent = rm(l.harga) + " seunit · " +
+          (l.dibuka ? "Tutup " + formatTarikh(l.tarikhAkhir) : "Ditutup");
+
+        info.appendChild(nama);
+        if (l.keterangan) info.appendChild(desc);
+        info.appendChild(meta);
+        btn.appendChild(img);
+        btn.appendChild(info);
+        btn.addEventListener("click", function () { select(l, true); });
+        list.appendChild(btn);
+      });
+
+    show("chooser", true);
+  }
+
+  $("changeBtn").addEventListener("click", function () {
+    resetForm();
+    history.pushState(null, "", location.pathname);
+    showChooser();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  // ---------- Lencana dipilih ----------
+  function select(l, push) {
+    lencana = l;
+    if (push) history.pushState(null, "", "?lencana=" + encodeURIComponent(l.id));
+
+    show("chooser", false);
+    show("empty", false);
+    show("success", false);
+
+    $("badgeImg").src = l.gambar || "assets/lencana.jpg";
+    $("badgeImg").alt = "Lencana " + l.nama;
+    $("badgeName").textContent = l.nama;
+    $("badgeDesc").textContent = l.keterangan;
+    $("badgePrice").textContent = rm(l.harga);
+    $("deadlineText").textContent = formatTarikh(l.tarikhAkhir);
+    document.title = "Tempahan Lencana · " + l.nama;
+    show("badgeHead", true);
+    show("changeBtn", senarai.length > 1);
+    show("deadline", true);
+
+    updateTotal();
+    clearTimeout(timer);
+    tick();
+    if (!isClosed()) {
+      show("closed", false);
+      show("form", true);
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // ---------- Kiraan detik ----------
   function tick() {
-    var diff = deadline - Date.now();
+    var diff = new Date(lencana.tarikhAkhir).getTime() - Date.now();
     if (diff <= 0) {
       $("countdown").textContent = "Ditutup";
       showClosed();
@@ -55,28 +208,26 @@
     var s = Math.floor(diff / 1000) % 60;
     $("countdown").textContent =
       "Baki " + (d ? d + " hari " : "") + pad(h) + ":" + pad(m) + ":" + pad(s);
-    setTimeout(tick, 1000);
+    timer = setTimeout(tick, 1000);
   }
-  function pad(n) { return (n < 10 ? "0" : "") + n; }
 
   function showClosed() {
     // Jangan sembunyikan halaman kejayaan jika tempahan baru sahaja dihantar.
     if (!$("success").classList.contains("hidden")) return;
-    form.classList.add("hidden");
-    $("closed").classList.remove("hidden");
+    show("form", false);
+    show("closed", true);
   }
-
-  tick();
 
   // ---------- Jumlah bayaran ----------
   function updateTotal() {
-    if (!(cfg.HARGA_SEUNIT > 0)) return;
+    if (!lencana) return;
     var n = parseInt($("bilangan").value, 10);
-    $("total").classList.remove("hidden");
-    $("totalAmount").textContent = "RM " + ((n > 0 ? n : 0) * cfg.HARGA_SEUNIT).toFixed(2);
+    n = n > 0 ? n : 0;
+    $("totalCalc").textContent = n ? "(" + n + " × " + rm(lencana.harga) + ")" : "";
+    $("totalAmount").textContent = rm(n * lencana.harga);
+    $("payAmount").textContent = n ? rm(n * lencana.harga) : "jumlah di atas";
   }
   $("bilangan").addEventListener("input", updateTotal);
-  updateTotal();
 
   // ---------- Fail resit ----------
   fileInput.addEventListener("change", function () {
@@ -154,11 +305,6 @@
       return;
     }
 
-    if (!cfg.SCRIPT_URL) {
-      formMsg.textContent = "Borang belum disambungkan ke sistem (SCRIPT_URL kosong dalam config.js).";
-      return;
-    }
-
     submitBtn.disabled = true;
     submitBtn.textContent = "Menghantar…";
 
@@ -166,6 +312,7 @@
     readAsBase64(file)
       .then(function (b64) {
         var payload = {
+          lencanaId: lencana.id,
           sekolah: $("sekolah").value.trim(),
           pemimpin: $("pemimpin").value.trim(),
           telefon: normalisePhone($("telefon").value),
@@ -198,12 +345,13 @@
   function showSuccess(data) {
     var rows = [
       ["No. rujukan", data.id, "ref"],
+      ["Lencana", data.lencana],
       ["Sekolah", data.sekolah],
       ["Pemimpin", data.pemimpin],
       ["No. telefon", data.telefon],
       ["Bilangan", data.bilangan],
+      ["Jumlah", rm(data.jumlah)],
     ];
-    if (cfg.HARGA_SEUNIT > 0) rows.push(["Jumlah", "RM " + (data.bilangan * cfg.HARGA_SEUNIT).toFixed(2)]);
 
     var dl = $("summary");
     dl.innerHTML = "";
@@ -219,20 +367,29 @@
       dl.appendChild(div);
     });
 
-    form.classList.add("hidden");
-    $("success").classList.remove("hidden");
+    show("form", false);
+    show("success", true);
     window.scrollTo({ top: $("success").offsetTop - 16, behavior: "smooth" });
   }
 
-  $("againBtn").addEventListener("click", function () {
+  function resetForm() {
     form.reset();
+    formMsg.textContent = "";
+    form.querySelectorAll(".err").forEach(function (el) { el.textContent = ""; });
+    form.querySelectorAll(".invalid").forEach(function (el) { el.classList.remove("invalid"); });
     $("dropTitle").textContent = "Pilih fail resit";
-    $("dropSub").textContent = "Gambar (JPG/PNG) atau PDF, maksimum " + cfg.SAIZ_RESIT_MAKS_MB + " MB";
+    $("dropSub").textContent = dropSubDefault;
     drop.classList.remove("has-file");
     updateTotal();
-    $("success").classList.add("hidden");
+  }
+
+  $("againBtn").addEventListener("click", function () {
+    resetForm();
+    show("success", false);
     if (isClosed()) { showClosed(); return; }
-    form.classList.remove("hidden");
+    show("form", true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
+
+  load();
 })();

@@ -27,15 +27,8 @@ body {
   background: radial-gradient(circle at 50% 0%, #1d3bb8 0%, var(--navy-deep) 70%);
   color: #fff;
   text-align: center;
-  padding: 24px 16px 40px;
+  padding: 28px 16px 48px;
   border-bottom: 4px solid var(--gold);
-}
-.hero-img {
-  width: 100%;
-  max-width: 340px;
-  border-radius: 12px;
-  display: block;
-  margin: 0 auto 12px;
 }
 .eyebrow {
   margin: 0;
@@ -250,3 +243,57 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
   .bank .v { text-align: left; }
 }
 .bank .acc span, .copy { white-space: nowrap; }
+
+.status p { margin: 0; text-align: center; color: var(--muted); }
+
+.section-title { margin: 0 0 12px; padding: 0 4px; }
+.badge-list { display: grid; gap: 12px; }
+.badge-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--card);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgba(11, 26, 92, .08);
+  padding: 12px;
+  cursor: pointer;
+}
+.badge-card:hover { border-color: var(--gold); }
+.badge-card img { width: 96px; height: 72px; object-fit: cover; border-radius: 10px; flex: none; background: var(--navy-deep); }
+.badge-card-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.badge-card-info strong { color: var(--navy-deep); }
+.badge-card-desc { color: var(--muted); font-size: .9rem; }
+.badge-card-meta { font-size: .85rem; font-weight: 600; color: var(--navy); }
+.badge-card.is-closed { opacity: .6; }
+.badge-card.is-closed .badge-card-meta { color: var(--danger); }
+
+.badge-head { text-align: center; }
+.badge-img { width: 100%; max-width: 360px; border-radius: 12px; display: block; margin: 0 auto 12px; background: var(--navy-deep); }
+.badge-head h2 { justify-content: center; margin: 0 0 4px; font-size: 1.2rem; }
+.badge-desc { margin: 0; color: var(--muted); }
+.badge-desc:empty { display: none; }
+.badge-price { margin: 8px 0 0; }
+.badge-price strong { color: var(--navy); font-size: 1.15rem; }
+.link {
+  background: none;
+  border: 0;
+  color: var(--navy);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  padding: 4px;
+}
+.total small { color: var(--muted); font-weight: 400; }
+.total strong { white-space: nowrap; }
+#chooser .section-title {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgba(11, 26, 92, .08);
+  padding: 14px 16px;
+}

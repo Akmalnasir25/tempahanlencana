@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tempahan Lencana AKPN 2026</title>
+  <meta name="description" content="Borang tempahan lencana Anugerah Ketua Pengakap Negara 2026 — Pengakap Daerah Kinta Utara">
+  <link rel="icon" href="assets/lencana.jpg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hero">
+    <img src="assets/lencana.jpg" alt="Lencana Anugerah Ketua Pengakap Negara 2026" class="hero-img">
+    <div class="hero-text">
+      <p class="eyebrow">Pengakap Daerah Kinta Utara</p>
+      <h1>Borang Tempahan Lencana<br>Anugerah Ketua Pengakap Negara 2026</h1>
+      <p class="sub">Rambu Pengakap Kanak-kanak · Tempahan mengikut sekolah</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card deadline" id="deadline">
+      <div>
+        <p class="label">Tarikh akhir tempahan</p>
+        <p class="value">2 Oktober 2026, 11:00 malam</p>
+      </div>
+      <p class="countdown" id="countdown" aria-live="polite"></p>
+    </section>
+
+    <section class="card closed hidden" id="closed">
+      <h2>Tempahan telah ditutup</h2>
+      <p>Tarikh akhir tempahan ialah 2 Oktober 2026, jam 11:00 malam. Sila hubungi pihak daerah untuk sebarang pertanyaan.</p>
+    </section>
+
+    <form class="card" id="form" novalidate>
+      <h2><span class="step">1</span> Maklumat sekolah</h2>
+
+      <div class="field">
+        <label for="sekolah">Nama sekolah</label>
+        <input id="sekolah" name="sekolah" type="text" required maxlength="150" autocomplete="organization" placeholder="cth: SK Taman Rapat">
+        <p class="err" data-for="sekolah"></p>
+      </div>
+
+      <div class="field">
+        <label for="pemimpin">Nama pemimpin</label>
+        <input id="pemimpin" name="pemimpin" type="text" required maxlength="120" autocomplete="name" placeholder="Nama penuh guru / pemimpin">
+        <p class="err" data-for="pemimpin"></p>
+      </div>
+
+      <div class="field">
+        <label for="telefon">No. telefon pemimpin</label>
+        <input id="telefon" name="telefon" type="tel" required inputmode="tel" autocomplete="tel" placeholder="cth: 012-3456789">
+        <p class="err" data-for="telefon"></p>
+      </div>
+
+      <div class="field">
+        <label for="bilangan">Bilangan lencana</label>
+        <input id="bilangan" name="bilangan" type="number" required min="1" max="1000" step="1" inputmode="numeric" placeholder="cth: 25">
+        <p class="err" data-for="bilangan"></p>
+      </div>
+
+      <div class="total hidden" id="total">
+        <span>Jumlah bayaran</span>
+        <strong id="totalAmount">RM 0.00</strong>
+      </div>
+
+      <h2><span class="step">2</span> Buat bayaran</h2>
+      <p class="hint">Sila buat pindahan wang ke akaun di bawah terlebih dahulu, kemudian muat naik resit.</p>
+
+      <div class="bank">
+        <div class="bank-row">
+          <span class="k">Nama akaun</span>
+          <span class="v" id="bankNama"></span>
+        </div>
+        <div class="bank-row">
+          <span class="k">No. akaun</span>
+          <span class="v acc">
+            <span id="bankNo"></span>
+            <button type="button" class="copy" id="copyBtn">Salin</button>
+          </span>
+        </div>
+        <div class="bank-row">
+          <span class="k">Bank</span>
+          <span class="v" id="bankBank"></span>
+        </div>
+      </div>
+
+      <h2><span class="step">3</span> Muat naik resit</h2>
+
+      <div class="field">
+        <label for="resit" class="drop" id="drop">
+          <span class="drop-title" id="dropTitle">Pilih fail resit</span>
+          <span class="drop-sub" id="dropSub">Gambar (JPG/PNG) atau PDF, maksimum 5 MB</span>
+        </label>
+        <input id="resit" name="resit" type="file" accept="image/*,application/pdf" required class="visually-hidden">
+        <p class="err" data-for="resit"></p>
+      </div>
+
+      <label class="check">
+        <input type="checkbox" id="sahkan" required>
+        <span>Saya mengesahkan maklumat di atas adalah betul dan bayaran telah dibuat.</span>
+      </label>
+      <p class="err" data-for="sahkan"></p>
+
+      <button type="submit" class="submit" id="submitBtn">Hantar tempahan</button>
+      <p class="form-msg" id="formMsg" role="alert"></p>
+    </form>
+
+    <section class="card success hidden" id="success">
+      <div class="tick" aria-hidden="true">✓</div>
+      <h2>Tempahan berjaya!</h2>
+      <p>Terima kasih. Tempahan anda telah diterima.</p>
+      <dl class="summary" id="summary"></dl>
+      <p class="hint">Sila simpan (screenshot) nombor rujukan ini untuk semakan.</p>
+      <button type="button" class="submit secondary" id="againBtn">Buat tempahan lain</button>
+    </section>
+  </main>
+
+  <footer class="foot">Persekutuan Pengakap Malaysia · Daerah Kinta Utara</footer>
+
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

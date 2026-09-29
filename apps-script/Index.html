@@ -228,6 +228,10 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
 
 .form-msg { margin: 10px 0 0; text-align: center; font-weight: 600; color: var(--danger); }
 .form-msg:empty { display: none; }
+.form-msg.ok { color: var(--ok); }
+.slip-link { display: block; margin-top: 10px; text-align: center; color: var(--navy); font-weight: 600; font-size: .9rem; }
+.success .submit + .submit, .success .slip-link + .submit { margin-top: 12px; }
+.semak h2 { margin-top: 0; }
 
 .success { text-align: center; }
 .tick {
@@ -485,8 +489,30 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
       <h2>Tempahan berjaya!</h2>
       <p>Terima kasih. Tempahan anda telah diterima.</p>
       <dl class="summary" id="summary"></dl>
-      <p class="hint">Sila simpan (screenshot) nombor rujukan ini untuk semakan.</p>
+      <p class="hint">Sila simpan nombor rujukan ini. Resit boleh dimuat turun semula kemudian menggunakan no. rujukan dan no. telefon.</p>
+      <button type="button" class="submit" id="slipBtn">⬇ Muat turun resit tempahan (PDF)</button>
+      <p class="form-msg" id="slipMsg" role="alert"></p>
+      <a class="slip-link hidden" id="slipLink" target="_blank" rel="noopener">Jika muat turun tidak bermula, tekan di sini untuk buka resit</a>
       <button type="button" class="submit secondary" id="againBtn">Buat tempahan lain</button>
+    </section>
+
+    <section class="card semak hidden" id="semak">
+      <h2>Sudah buat tempahan?</h2>
+      <p class="hint">Muat turun semula resit tempahan anda.</p>
+      <form id="semakForm" novalidate>
+        <div class="field">
+          <label for="sRujukan">No. rujukan</label>
+          <input id="sRujukan" type="text" autocomplete="off" autocapitalize="off" placeholder="cth: LencanaAKPNPKK26-0001">
+        </div>
+        <div class="field">
+          <label for="sTelefon">No. telefon pemimpin</label>
+          <input id="sTelefon" type="tel" inputmode="tel" autocomplete="tel" placeholder="No. telefon yang digunakan semasa tempahan">
+        </div>
+        <button type="submit" class="submit secondary" id="semakBtn">⬇ Muat turun resit</button>
+        <p class="form-msg" id="semakMsg" role="alert"></p>
+        <dl class="summary hidden" id="semakHasil"></dl>
+        <a class="slip-link hidden" id="semakLink" target="_blank" rel="noopener">Jika muat turun tidak bermula, tekan di sini untuk buka resit</a>
+      </form>
     </section>
   </main>
 
@@ -595,6 +621,7 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
         applyConfig(data);
         senarai = data.lencana || [];
         show("loading", false);
+        show("semak", true);
         google.script.url.getLocation(function (loc) { route(loc.parameter.lencana); });
       })
       .withFailureHandler(function () { loadFailed(); })
@@ -855,7 +882,88 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
     }, function (err) { failed(err.message); });
   });
 
+  // ---------- Resit tempahan (PDF) ----------
+  var tempahanTerakhir = null;
+
+  function simpanPdf(b64, namaFail, pautan) {
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = namaFail;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Pautan sandaran jika pelayar tidak membenarkan muat turun automatik.
+    pautan.href = url;
+    pautan.classList.remove("hidden");
+  }
+
+  function mintaSlip(rujukan, telefon, btn, msgEl, pautan, onOk) {
+    var label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Menjana resit…";
+    msgEl.textContent = "";
+    msgEl.classList.remove("ok");
+    pautan.classList.add("hidden");
+    var selesai = function () { btn.disabled = false; btn.textContent = label; };
+    google.script.run
+      .withSuccessHandler(function (r) {
+        selesai();
+        if (!r || !r.ok) { msgEl.textContent = (r && r.error) || "Gagal menjana resit."; return; }
+        simpanPdf(r.pdf, r.namaFail, pautan);
+        msgEl.textContent = "✓ " + r.namaFail + " telah dimuat turun.";
+        msgEl.classList.add("ok");
+        if (onOk) onOk(r);
+      })
+      .withFailureHandler(function () {
+        selesai();
+        msgEl.textContent = "Gagal menjana resit. Sila semak sambungan internet dan cuba lagi.";
+      })
+      .slipTempahan(rujukan, telefon);
+  }
+
+  $("slipBtn").addEventListener("click", function () {
+    if (!tempahanTerakhir) return;
+    mintaSlip(tempahanTerakhir.id, tempahanTerakhir.telefon, this, $("slipMsg"), $("slipLink"));
+  });
+
+  $("semakForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var rujukan = $("sRujukan").value.trim();
+    var telefon = $("sTelefon").value.trim();
+    $("semakHasil").classList.add("hidden");
+    if (!rujukan || !telefon) {
+      $("semakMsg").classList.remove("ok");
+      $("semakMsg").textContent = "Sila masukkan no. rujukan dan no. telefon.";
+      return;
+    }
+    mintaSlip(rujukan, telefon, $("semakBtn"), $("semakMsg"), $("semakLink"), function (r) {
+      var t = r.tempahan;
+      var dl = $("semakHasil");
+      dl.innerHTML = "";
+      [["No. rujukan", t.rujukan], ["Tarikh", t.masa], ["Lencana", t.lencana], ["Sekolah", t.sekolah],
+       ["Bilangan", t.bilangan], ["Jumlah", rm(t.jumlah)]].forEach(function (x) {
+        var div = document.createElement("div");
+        var dt = document.createElement("dt");
+        var dd = document.createElement("dd");
+        dt.textContent = x[0];
+        dd.textContent = x[1];
+        div.appendChild(dt);
+        div.appendChild(dd);
+        dl.appendChild(div);
+      });
+      dl.classList.remove("hidden");
+    });
+  });
+
   function showSuccess(data) {
+    tempahanTerakhir = data;
+    show("semak", false);
+    $("slipMsg").textContent = "";
+    $("slipLink").classList.add("hidden");
     var rows = [
       ["No. rujukan", data.id, "ref"],
       ["Lencana", data.lencana],
@@ -905,6 +1013,7 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
 
   $("againBtn").addEventListener("click", function () {
     resetForm();
+    show("semak", true);
     show("success", false);
     if (isClosed()) { showClosed(); return; }
     show("form", true);

@@ -148,6 +148,116 @@ function hantarTempahan(d) {
 }
 
 /**
+ * Dipanggil oleh borang: jana slip tempahan (PDF) untuk satu tempahan.
+ * No. rujukan DAN no. telefon mesti sepadan supaya orang lain tidak boleh
+ * melihat tempahan sekolah lain.
+ */
+function slipTempahan(rujukan, telefon) {
+  try {
+    rujukan = String(rujukan || '').trim().toUpperCase();
+    var tel = normalTelefon_(telefon);
+    var sheet = getTempahanSheet_();
+    var row = null;
+    if (rujukan && tel && sheet.getLastRow() >= 2) {
+      row = sheet.getRange(2, 1, sheet.getLastRow() - 1, HEADERS_TEMPAHAN.length).getValues()
+        .filter(function (r) { return String(r[0]).trim().toUpperCase() === rujukan; })[0];
+    }
+    if (!row || normalTelefon_(row[6]) !== tel) {
+      Utilities.sleep(1500); // perlahankan cubaan meneka
+      return { ok: false, error: 'Tempahan tidak dijumpai. Sila semak no. rujukan dan no. telefon.' };
+    }
+
+    var t = {
+      rujukan: String(row[0]).trim(),
+      masa: row[1] instanceof Date ? row[1] : new Date(row[1]),
+      lencanaId: String(row[2]).trim(), lencana: String(row[3]).trim(),
+      sekolah: String(row[4]).trim(), pemimpin: String(row[5]).trim(),
+      telefon: '0' + normalTelefon_(row[6]),
+      bilangan: Number(row[7]) || 0, harga: Number(row[8]) || 0, jumlah: Number(row[9]) || 0,
+    };
+    var sekolah = kiraSekolah_(t.lencanaId, t.sekolah);
+
+    var namaFail = 'Resit Tempahan ' + t.rujukan + '.pdf';
+    var pdf = HtmlService.createHtmlOutput(slipHtml_(t, sekolah)).getAs('application/pdf').setName(namaFail);
+    return {
+      ok: true, namaFail: namaFail, pdf: Utilities.base64Encode(pdf.getBytes()),
+      tempahan: {
+        rujukan: t.rujukan, lencana: t.lencana, sekolah: t.sekolah, pemimpin: t.pemimpin,
+        telefon: t.telefon, bilangan: t.bilangan, jumlah: t.jumlah, masa: tarikhMasa_(t.masa),
+      },
+    };
+  } catch (err) {
+    console.error(err);
+    return { ok: false, error: 'Gagal menjana resit. Sila cuba lagi sebentar.' };
+  }
+}
+
+/** Digit telefon tanpa 0/60 di hadapan, supaya 012..., +6012... dan 12... sepadan. */
+function normalTelefon_(v) {
+  var d = String(v || '').replace(/\D/g, '');
+  if (d.indexOf('60') === 0 && d.length >= 11) d = d.slice(2);
+  return d.replace(/^0+/, '');
+}
+
+function tarikhMasa_(d) {
+  return isNaN(d.getTime()) ? '' : Utilities.formatDate(d, 'Asia/Kuala_Lumpur', 'd/M/yyyy, h:mm a');
+}
+
+function esc_(v) {
+  return String(v).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+/** HTML slip tempahan yang ditukar kepada PDF. */
+function slipHtml_(t, sekolah) {
+  var rm = function (n) { return 'RM ' + Number(n).toFixed(2); };
+  var baris = function (k, v, gaya) {
+    return '<tr><td class="k">' + esc_(k) + '</td><td class="v"' + (gaya ? ' style="' + gaya + '"' : '') + '>' + esc_(v) + '</td></tr>';
+  };
+  var tambahan = sekolah.tempahan > 1
+    ? '<h3>Jumlah keseluruhan sekolah (semua tempahan lencana ini)</h3><table>' +
+      baris('Bilangan tempahan', sekolah.tempahan) +
+      baris('Jumlah lencana', sekolah.bilangan) +
+      baris('Jumlah bayaran', rm(sekolah.jumlah)) + '</table>'
+    : '';
+  return '<!doctype html><html><head><meta charset="utf-8"><style>' +
+    'body{font-family:Arial,Helvetica,sans-serif;color:#1a1f36;font-size:12px;margin:0;}' +
+    '.head{background:#0b1a5c;color:#fff;padding:18px 24px;border-bottom:4px solid #f5c518;}' +
+    '.head .e{color:#f5c518;font-size:11px;font-weight:bold;letter-spacing:1px;margin:0;}' +
+    '.head h1{margin:4px 0 0;font-size:20px;}' +
+    '.wrap{padding:20px 24px;}' +
+    '.ref{border:2px solid #13288a;border-radius:6px;padding:10px 14px;margin-bottom:16px;}' +
+    '.ref .k{color:#5b6480;font-size:11px;}.ref .v{font-size:18px;font-weight:bold;color:#13288a;}' +
+    'h3{font-size:13px;color:#0b1a5c;margin:16px 0 6px;border-bottom:1px solid #dde2f0;padding-bottom:4px;}' +
+    'table{width:100%;border-collapse:collapse;}td{padding:5px 0;vertical-align:top;}' +
+    'td.k{color:#5b6480;width:40%;}td.v{font-weight:bold;}' +
+    '.total td{background:#fff8dc;padding:8px;font-size:14px;}' +
+    '.note{margin-top:22px;color:#5b6480;font-size:10px;border-top:1px solid #dde2f0;padding-top:8px;}' +
+    '</style></head><body>' +
+    '<div class="head"><p class="e">PERSEKUTUAN PENGAKAP MALAYSIA · DAERAH KINTA UTARA</p>' +
+    '<h1>RESIT TEMPAHAN LENCANA</h1></div>' +
+    '<div class="wrap">' +
+    '<div class="ref"><div class="k">No. rujukan</div><div class="v">' + esc_(t.rujukan) + '</div>' +
+    '<div class="k">Tarikh tempahan: ' + esc_(tarikhMasa_(t.masa)) + '</div></div>' +
+    '<h3>Maklumat tempahan</h3><table>' +
+    baris('Lencana', t.lencana) + baris('ID lencana', t.lencanaId) +
+    baris('Nama sekolah', t.sekolah) + baris('Nama pemimpin', t.pemimpin) +
+    baris('No. telefon', t.telefon) + '</table>' +
+    '<h3>Bayaran</h3><table>' +
+    baris('Bilangan lencana', t.bilangan) + baris('Harga seunit', rm(t.harga)) +
+    '<tr class="total"><td class="k">Jumlah bayaran</td><td class="v">' + esc_(rm(t.jumlah)) + '</td></tr>' +
+    baris('Status', 'Resit bayaran telah dimuat naik') +
+    '</table>' + tambahan +
+    '<h3>Akaun bayaran</h3><table>' +
+    baris('Nama akaun', BANK.nama) + baris('No. akaun', BANK.noAkaun) + baris('Bank', BANK.bank) +
+    baris('Ref 1', t.lencanaId) + baris('Ref 2', t.sekolah.toUpperCase()) + '</table>' +
+    '<p class="note">Slip ini dijana secara automatik oleh sistem tempahan lencana Pengakap Daerah Kinta Utara pada ' +
+    esc_(tarikhMasa_(new Date())) + '. Sila simpan slip ini sebagai bukti tempahan.</p>' +
+    '</div></body></html>';
+}
+
+/**
  * Kunci untuk mengumpul tempahan sekolah yang sama walaupun ditaip sedikit berbeza,
  * cth. "SK Taman Rapat" dan "sk. taman  rapat" -> "SK TAMAN RAPAT".
  */

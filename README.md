@@ -21,6 +21,12 @@ Guru mengisi:
 Selepas tempahan berjaya, guru menerima nombor rujukan (contoh `LencanaAKPNPKK26-0001`).
 Sekolah yang sama boleh membuat tempahan tambahan. Halaman kejayaan akan menunjukkan jumlah keseluruhan lencana sekolah itu bagi semua tempahannya.
 
+### Resit tempahan (PDF)
+
+- Selepas tempahan berjaya, guru boleh menekan **Muat turun resit tempahan (PDF)**.
+- Untuk memuat turun semula kemudian, gunakan kotak **Sudah buat tempahan?** di bawah borang. Masukkan no. rujukan dan no. telefon pemimpin. Kedua-duanya mesti sepadan, jadi sekolah lain tidak boleh melihat tempahan anda.
+- Resit mengandungi no. rujukan, tarikh, butiran lencana, sekolah, pemimpin, bilangan, jumlah bayaran, maklumat akaun (Ref 1/Ref 2), dan jumlah keseluruhan sekolah jika ada tempahan tambahan.
+
 ## Struktur fail
 
 | Fail | Kegunaan |

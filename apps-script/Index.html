@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <base target="_top">
+  <style>
+:root {
+  --navy: #13288a;
+  --navy-deep: #0b1a5c;
+  --gold: #f5c518;
+  --gold-deep: #c99a00;
+  --bg: #f3f5fb;
+  --card: #ffffff;
+  --text: #1a1f36;
+  --muted: #5b6480;
+  --line: #dde2f0;
+  --danger: #c62828;
+  --ok: #1b8a3a;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.hero {
+  background: radial-gradient(circle at 50% 0%, #1d3bb8 0%, var(--navy-deep) 70%);
+  color: #fff;
+  text-align: center;
+  padding: 28px 16px 48px;
+  border-bottom: 4px solid var(--gold);
+}
+.eyebrow {
+  margin: 0;
+  color: var(--gold);
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-size: .8rem;
+}
+.hero h1 {
+  margin: 6px 0;
+  font-size: clamp(1.25rem, 4.5vw, 1.9rem);
+  line-height: 1.25;
+}
+.sub { margin: 0; opacity: .85; font-size: .95rem; }
+
+.wrap {
+  max-width: 620px;
+  margin: -24px auto 0;
+  padding: 0 16px 32px;
+  position: relative;
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgba(11, 26, 92, .08);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.deadline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-left: 5px solid var(--gold);
+}
+.deadline .label { margin: 0; color: var(--muted); font-size: .85rem; }
+.deadline .value { margin: 0; font-weight: 700; }
+.countdown {
+  margin: 0;
+  background: var(--navy);
+  color: var(--gold);
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: .9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.closed { border-left: 5px solid var(--danger); }
+.closed h2 { color: var(--danger); margin-top: 0; }
+
+h2 {
+  font-size: 1.1rem;
+  margin: 24px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--navy-deep);
+}
+form h2:first-child { margin-top: 0; }
+.step {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--navy);
+  color: var(--gold);
+  font-size: .9rem;
+  flex: none;
+}
+
+.field { margin-bottom: 14px; }
+label { display: block; font-weight: 600; margin-bottom: 6px; font-size: .95rem; }
+input[type="text"], input[type="tel"], input[type="number"] {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 1rem;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  font-family: inherit;
+}
+input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(19, 40, 138, .15); }
+.invalid input, input.invalid { border-color: var(--danger); }
+
+.err { color: var(--danger); font-size: .85rem; margin: 4px 0 0; min-height: 0; }
+.err:empty { display: none; }
+.hint { color: var(--muted); font-size: .9rem; margin: 0 0 12px; }
+
+.total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff8dc;
+  border: 1.5px solid var(--gold);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.total strong { font-size: 1.25rem; color: var(--navy-deep); }
+
+.bank {
+  background: var(--navy);
+  color: #fff;
+  border-radius: 12px;
+  padding: 6px 16px;
+}
+.bank-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .15);
+}
+.bank-row:last-child { border-bottom: 0; }
+.bank .k { opacity: .75; font-size: .85rem; flex: none; }
+.bank .v { font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+.bank .acc { display: flex; align-items: center; gap: 8px; color: var(--gold); font-size: 1.1rem; letter-spacing: .04em; }
+.copy {
+  background: var(--gold);
+  color: var(--navy-deep);
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: .8rem;
+  cursor: pointer;
+  letter-spacing: 0;
+}
+
+.drop {
+  border: 2px dashed var(--line);
+  border-radius: 12px;
+  padding: 22px 16px;
+  text-align: center;
+  cursor: pointer;
+  background: #fafbff;
+  transition: border-color .15s, background .15s;
+}
+.drop:hover, .drop.has-file { border-color: var(--navy); background: #eef1fd; }
+.drop.invalid { border-color: var(--danger); }
+.drop-title { display: block; font-weight: 700; color: var(--navy); overflow-wrap: anywhere; }
+.drop-sub { display: block; font-weight: 400; color: var(--muted); font-size: .85rem; }
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.check { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; margin-top: 18px; }
+.check input { width: 20px; height: 20px; margin: 2px 0 0; flex: none; accent-color: var(--navy); }
+
+.submit {
+  width: 100%;
+  margin-top: 18px;
+  padding: 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border: 0;
+  border-radius: 12px;
+  background: var(--gold);
+  color: var(--navy-deep);
+  cursor: pointer;
+  font-family: inherit;
+}
+.submit:hover { background: #ffd43b; }
+.submit:disabled { opacity: .6; cursor: progress; }
+.submit.secondary { background: var(--navy); color: #fff; }
+
+.form-msg { margin: 10px 0 0; text-align: center; font-weight: 600; color: var(--danger); }
+.form-msg:empty { display: none; }
+
+.success { text-align: center; }
+.tick {
+  width: 64px; height: 64px;
+  margin: 0 auto 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  color: #fff;
+  font-size: 2rem;
+  display: grid;
+  place-items: center;
+}
+.success h2 { justify-content: center; margin-top: 0; }
+.summary {
+  text-align: left;
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin: 16px 0;
+}
+.summary div { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.summary div:last-child { border-bottom: 0; }
+.summary dt { color: var(--muted); }
+.summary dd { margin: 0; font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+.summary .ref dd { color: var(--navy); font-size: 1.1rem; }
+
+.hidden { display: none !important; }
+
+.foot { text-align: center; color: var(--muted); font-size: .8rem; padding: 0 16px 32px; }
+
+@media (max-width: 520px) {
+  .bank-row { flex-direction: column; gap: 2px; }
+  .bank .v { text-align: left; }
+}
+.bank .acc span, .copy { white-space: nowrap; }
+
+.status p { margin: 0; text-align: center; color: var(--muted); }
+
+.section-title { margin: 0 0 12px; padding: 0 4px; }
+.badge-list { display: grid; gap: 12px; }
+.badge-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--card);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgba(11, 26, 92, .08);
+  padding: 12px;
+  cursor: pointer;
+}
+.badge-card:hover { border-color: var(--gold); }
+.badge-card img { width: 96px; height: 72px; object-fit: cover; border-radius: 10px; flex: none; background: var(--navy-deep); }
+.badge-card-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.badge-card-info strong { color: var(--navy-deep); }
+.badge-card-desc { color: var(--muted); font-size: .9rem; }
+.badge-card-meta { font-size: .85rem; font-weight: 600; color: var(--navy); }
+.badge-card.is-closed { opacity: .6; }
+.badge-card.is-closed .badge-card-meta { color: var(--danger); }
+
+.badge-head { text-align: center; }
+.badge-img { width: 100%; max-width: 360px; border-radius: 12px; display: block; margin: 0 auto 12px; background: var(--navy-deep); }
+.badge-head h2 { justify-content: center; margin: 0 0 4px; font-size: 1.2rem; }
+.badge-desc { margin: 0; color: var(--muted); }
+.badge-desc:empty { display: none; }
+.badge-price { margin: 8px 0 0; }
+.badge-price strong { color: var(--navy); font-size: 1.15rem; }
+.link {
+  background: none;
+  border: 0;
+  color: var(--navy);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  padding: 4px;
+}
+.total small { color: var(--muted); font-weight: 400; }
+.total strong { white-space: nowrap; }
+#chooser .section-title {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgba(11, 26, 92, .08);
+  padding: 14px 16px;
+}
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <p class="eyebrow">Pengakap Daerah Kinta Utara</p>
+    <h1>Borang Tempahan Lencana</h1>
+    <p class="sub">Tempahan mengikut sekolah</p>
+  </header>
+
+  <main class="wrap">
+    <section class="card status" id="loading">
+      <p>Memuatkan senarai lencana…</p>
+    </section>
+
+    <section class="card closed hidden" id="loadError">
+      <h2>Tidak dapat memuatkan borang</h2>
+      <p id="loadErrorMsg">Sila semak sambungan internet dan muat semula halaman.</p>
+      <button type="button" class="submit secondary" id="retryBtn">Cuba lagi</button>
+    </section>
+
+    <!-- Pilih lencana (dipaparkan jika ada lebih daripada satu) -->
+    <section class="hidden" id="chooser">
+      <h2 class="section-title">Pilih lencana untuk ditempah</h2>
+      <div class="badge-list" id="badgeList"></div>
+    </section>
+
+    <section class="card closed hidden" id="empty">
+      <h2>Tiada tempahan dibuka</h2>
+      <p>Buat masa ini tiada lencana yang dibuka untuk tempahan.</p>
+    </section>
+
+    <!-- Lencana dipilih -->
+    <section class="card badge-head hidden" id="badgeHead">
+      <img id="badgeImg" alt="" class="badge-img">
+      <div class="badge-info">
+        <h2 id="badgeName"></h2>
+        <p class="badge-desc" id="badgeDesc"></p>
+        <p class="badge-price"><strong id="badgePrice"></strong> seunit</p>
+      </div>
+      <button type="button" class="link hidden" id="changeBtn">← Tukar lencana</button>
+    </section>
+
+    <section class="card deadline hidden" id="deadline">
+      <div>
+        <p class="label">Tarikh akhir tempahan</p>
+        <p class="value" id="deadlineText"></p>
+      </div>
+      <p class="countdown" id="countdown" aria-live="polite"></p>
+    </section>
+
+    <section class="card closed hidden" id="closed">
+      <h2>Tempahan telah ditutup</h2>
+      <p>Tarikh akhir tempahan untuk lencana ini telah tamat. Sila hubungi pihak daerah untuk sebarang pertanyaan.</p>
+    </section>
+
+    <form class="card hidden" id="form" novalidate>
+      <h2><span class="step">1</span> Maklumat sekolah</h2>
+
+      <div class="field">
+        <label for="sekolah">Nama sekolah</label>
+        <input id="sekolah" name="sekolah" type="text" required maxlength="150" autocomplete="organization" placeholder="cth: SK Taman Rapat">
+        <p class="err" data-for="sekolah"></p>
+      </div>
+
+      <div class="field">
+        <label for="pemimpin">Nama pemimpin</label>
+        <input id="pemimpin" name="pemimpin" type="text" required maxlength="120" autocomplete="name" placeholder="Nama penuh guru / pemimpin">
+        <p class="err" data-for="pemimpin"></p>
+      </div>
+
+      <div class="field">
+        <label for="telefon">No. telefon pemimpin</label>
+        <input id="telefon" name="telefon" type="tel" required inputmode="tel" autocomplete="tel" placeholder="cth: 012-3456789">
+        <p class="err" data-for="telefon"></p>
+      </div>
+
+      <div class="field">
+        <label for="bilangan">Bilangan lencana</label>
+        <input id="bilangan" name="bilangan" type="number" required min="1" max="1000" step="1" inputmode="numeric" placeholder="cth: 25">
+        <p class="err" data-for="bilangan"></p>
+      </div>
+
+      <div class="total">
+        <span>Jumlah bayaran <small id="totalCalc"></small></span>
+        <strong id="totalAmount">RM 0.00</strong>
+      </div>
+
+      <h2><span class="step">2</span> Buat bayaran</h2>
+      <p class="hint">Sila buat pindahan wang sebanyak <strong id="payAmount">jumlah di atas</strong> ke akaun di bawah terlebih dahulu, kemudian muat naik resit.</p>
+
+      <div class="bank">
+        <div class="bank-row">
+          <span class="k">Nama akaun</span>
+          <span class="v" id="bankNama"></span>
+        </div>
+        <div class="bank-row">
+          <span class="k">No. akaun</span>
+          <span class="v acc">
+            <span id="bankNo"></span>
+            <button type="button" class="copy" id="copyBtn">Salin</button>
+          </span>
+        </div>
+        <div class="bank-row">
+          <span class="k">Bank</span>
+          <span class="v" id="bankBank"></span>
+        </div>
+      </div>
+
+      <h2><span class="step">3</span> Muat naik resit</h2>
+
+      <div class="field">
+        <label for="resit" class="drop" id="drop">
+          <span class="drop-title" id="dropTitle">Pilih fail resit</span>
+          <span class="drop-sub" id="dropSub"></span>
+        </label>
+        <input id="resit" name="resit" type="file" accept="image/*,application/pdf" required class="visually-hidden">
+        <p class="err" data-for="resit"></p>
+      </div>
+
+      <label class="check">
+        <input type="checkbox" id="sahkan" required>
+        <span>Saya mengesahkan maklumat di atas adalah betul dan bayaran telah dibuat.</span>
+      </label>
+      <p class="err" data-for="sahkan"></p>
+
+      <button type="submit" class="submit" id="submitBtn">Hantar tempahan</button>
+      <p class="form-msg" id="formMsg" role="alert"></p>
+    </form>
+
+    <section class="card success hidden" id="success">
+      <div class="tick" aria-hidden="true">✓</div>
+      <h2>Tempahan berjaya!</h2>
+      <p>Terima kasih. Tempahan anda telah diterima.</p>
+      <dl class="summary" id="summary"></dl>
+      <p class="hint">Sila simpan (screenshot) nombor rujukan ini untuk semakan.</p>
+      <button type="button" class="submit secondary" id="againBtn">Buat tempahan lain</button>
+    </section>
+  </main>
+
+  <footer class="foot">Persekutuan Pengakap Malaysia · Daerah Kinta Utara</footer>
+
+  <script>
+(function () {
+  "use strict";
+
+  var cfg = { BANK: {}, SAIZ_RESIT_MAKS_MB: 5 }; // diisi daripada getData()
+  var BULAN = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai",
+    "Ogos", "September", "Oktober", "November", "Disember"];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var show = function (id, on) { $(id).classList.toggle("hidden", !on); };
+  var form = $("form");
+  var submitBtn = $("submitBtn");
+  var formMsg = $("formMsg");
+  var fileInput = $("resit");
+  var drop = $("drop");
+
+  var senarai = [];   // semua lencana aktif dari Google Sheet
+  var lencana = null; // lencana yang sedang ditempah
+  var timer = null;
+
+  // ---------- Utiliti ----------
+  function rm(n) { return "RM " + Number(n).toFixed(2); }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+
+  // Format tarikh dalam waktu Malaysia, cth. "2 Oktober 2026, 11:00 malam".
+  function formatTarikh(iso) {
+    var p = {};
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kuala_Lumpur", year: "numeric", month: "numeric", day: "numeric",
+      hour: "numeric", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(new Date(iso)).forEach(function (x) { p[x.type] = x.value; });
+    var h = Number(p.hour);
+    var waktu = h < 12 ? "pagi" : h < 14 ? "tengah hari" : h < 19 ? "petang" : "malam";
+    return Number(p.day) + " " + BULAN[Number(p.month) - 1] + " " + p.year + ", " +
+      (h % 12 || 12) + ":" + p.minute + " " + waktu;
+  }
+
+  function isClosed() { return !lencana || Date.now() > new Date(lencana.tarikhAkhir).getTime(); }
+
+  // ---------- Maklumat bank ----------
+  var dropSubDefault = "";
+  function applyConfig(data) {
+    cfg.BANK = data.bank;
+    cfg.SAIZ_RESIT_MAKS_MB = data.saizResitMaksMB;
+    $("bankNama").textContent = cfg.BANK.nama;
+    $("bankNo").textContent = cfg.BANK.noAkaun;
+    $("bankBank").textContent = cfg.BANK.bank;
+    dropSubDefault = "Gambar (JPG/PNG) atau PDF, maksimum " + cfg.SAIZ_RESIT_MAKS_MB + " MB";
+    $("dropSub").textContent = dropSubDefault;
+  }
+
+  $("copyBtn").addEventListener("click", function () {
+    var btn = this;
+    var done = function () {
+      btn.textContent = "Disalin!";
+      setTimeout(function () { btn.textContent = "Salin"; }, 1500);
+    };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(cfg.BANK.noAkaun).then(done, fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+    function fallbackCopy() {
+      var t = document.createElement("textarea");
+      t.value = cfg.BANK.noAkaun;
+      document.body.appendChild(t);
+      t.select();
+      try { document.execCommand("copy"); done(); } catch (e) { /* abaikan */ }
+      document.body.removeChild(t);
+    }
+  });
+
+  // ---------- Muat senarai lencana ----------
+  function load() {
+    show("loading", true);
+    show("loadError", false);
+    google.script.run
+      .withSuccessHandler(function (data) {
+        if (!data || !data.ok) return loadFailed(data && data.error);
+        applyConfig(data);
+        senarai = data.lencana || [];
+        show("loading", false);
+        google.script.url.getLocation(function (loc) { route(loc.parameter.lencana); });
+      })
+      .withFailureHandler(function () { loadFailed(); })
+      .getData();
+  }
+
+  function loadFailed(msg) {
+    show("loading", false);
+    show("loadError", true);
+    $("loadErrorMsg").textContent = msg || "Sila semak sambungan internet dan muat semula halaman.";
+  }
+
+  $("retryBtn").addEventListener("click", load);
+
+  // Pilih paparan berdasarkan ?lencana=ID dalam URL, atau terus buka jika hanya satu lencana.
+  function route(id) {
+    var dipilih = senarai.filter(function (l) { return l.id === id; })[0];
+
+    if (dipilih) return select(dipilih, false);
+    if (senarai.length === 1) return select(senarai[0], false);
+    if (!senarai.length) { show("empty", true); return; }
+    showChooser();
+  }
+
+  google.script.history.setChangeHandler(function (e) {
+    if (!senarai.length) return;
+    resetForm();
+    route(e.location.parameter.lencana);
+  });
+
+  // ---------- Senarai pilihan lencana ----------
+  function showChooser() {
+    lencana = null;
+    clearTimeout(timer);
+    ["badgeHead", "deadline", "closed", "form", "success"].forEach(function (id) { show(id, false); });
+
+    var list = $("badgeList");
+    list.innerHTML = "";
+    senarai
+      .slice()
+      .sort(function (a, b) { return (b.dibuka - a.dibuka) || a.tarikhAkhir.localeCompare(b.tarikhAkhir); })
+      .forEach(function (l) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "badge-card" + (l.dibuka ? "" : " is-closed");
+
+        var img = document.createElement("img");
+        img.alt = "";
+        if (l.gambar) img.src = l.gambar;
+
+        var info = document.createElement("span");
+        info.className = "badge-card-info";
+        var nama = document.createElement("strong");
+        nama.textContent = l.nama;
+        var desc = document.createElement("span");
+        desc.className = "badge-card-desc";
+        desc.textContent = l.keterangan;
+        var meta = document.createElement("span");
+        meta.className = "badge-card-meta";
+        meta.textContent = rm(l.harga) + " seunit · " +
+          (l.dibuka ? "Tutup " + formatTarikh(l.tarikhAkhir) : "Ditutup");
+
+        info.appendChild(nama);
+        if (l.keterangan) info.appendChild(desc);
+        info.appendChild(meta);
+        btn.appendChild(img);
+        btn.appendChild(info);
+        btn.addEventListener("click", function () { select(l, true); });
+        list.appendChild(btn);
+      });
+
+    show("chooser", true);
+  }
+
+  $("changeBtn").addEventListener("click", function () {
+    resetForm();
+    google.script.history.push(null, {});
+    showChooser();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  // ---------- Lencana dipilih ----------
+  function select(l, push) {
+    lencana = l;
+    if (push) google.script.history.push(null, { lencana: l.id });
+
+    show("chooser", false);
+    show("empty", false);
+    show("success", false);
+
+    if (l.gambar) $("badgeImg").src = l.gambar;
+    show("badgeImg", !!l.gambar);
+    $("badgeImg").alt = "Lencana " + l.nama;
+    $("badgeName").textContent = l.nama;
+    $("badgeDesc").textContent = l.keterangan;
+    $("badgePrice").textContent = rm(l.harga);
+    $("deadlineText").textContent = formatTarikh(l.tarikhAkhir);
+    show("badgeHead", true);
+    show("changeBtn", senarai.length > 1);
+    show("deadline", true);
+
+    updateTotal();
+    clearTimeout(timer);
+    tick();
+    if (!isClosed()) {
+      show("closed", false);
+      show("form", true);
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // ---------- Kiraan detik ----------
+  function tick() {
+    var diff = new Date(lencana.tarikhAkhir).getTime() - Date.now();
+    if (diff <= 0) {
+      $("countdown").textContent = "Ditutup";
+      showClosed();
+      return;
+    }
+    var d = Math.floor(diff / 86400000);
+    var h = Math.floor(diff / 3600000) % 24;
+    var m = Math.floor(diff / 60000) % 60;
+    var s = Math.floor(diff / 1000) % 60;
+    $("countdown").textContent =
+      "Baki " + (d ? d + " hari " : "") + pad(h) + ":" + pad(m) + ":" + pad(s);
+    timer = setTimeout(tick, 1000);
+  }
+
+  function showClosed() {
+    // Jangan sembunyikan halaman kejayaan jika tempahan baru sahaja dihantar.
+    if (!$("success").classList.contains("hidden")) return;
+    show("form", false);
+    show("closed", true);
+  }
+
+  // ---------- Jumlah bayaran ----------
+  function updateTotal() {
+    if (!lencana) return;
+    var n = parseInt($("bilangan").value, 10);
+    n = n > 0 ? n : 0;
+    $("totalCalc").textContent = n ? "(" + n + " × " + rm(lencana.harga) + ")" : "";
+    $("totalAmount").textContent = rm(n * lencana.harga);
+    $("payAmount").textContent = n ? rm(n * lencana.harga) : "jumlah di atas";
+  }
+  $("bilangan").addEventListener("input", updateTotal);
+
+  // ---------- Fail resit ----------
+  fileInput.addEventListener("change", function () {
+    var f = fileInput.files[0];
+    if (f) {
+      $("dropTitle").textContent = f.name;
+      $("dropSub").textContent = (f.size / 1024 / 1024).toFixed(2) + " MB · tekan untuk tukar fail";
+      drop.classList.add("has-file");
+    }
+    validate("resit");
+  });
+
+  // ---------- Pengesahan ----------
+  function normalisePhone(v) {
+    var d = v.replace(/[^\d+]/g, "");
+    if (d.indexOf("+60") === 0) d = "0" + d.slice(3);
+    else if (d.indexOf("60") === 0 && d.length >= 11) d = "0" + d.slice(2);
+    return d.replace(/\+/g, "");
+  }
+
+  var rules = {
+    sekolah: function (v) { return v.trim().length >= 3 ? "" : "Sila masukkan nama sekolah."; },
+    pemimpin: function (v) { return v.trim().length >= 3 ? "" : "Sila masukkan nama pemimpin."; },
+    telefon: function (v) {
+      return /^01\d{8,9}$/.test(normalisePhone(v)) ? "" : "No. telefon tidak sah. Contoh: 012-3456789";
+    },
+    bilangan: function (v) {
+      var n = Number(v);
+      return Number.isInteger(n) && n >= 1 && n <= 1000 ? "" : "Sila masukkan bilangan (1 hingga 1000).";
+    },
+    resit: function () {
+      var f = fileInput.files[0];
+      if (!f) return "Sila muat naik resit bayaran.";
+      if (!/^image\/|^application\/pdf$/.test(f.type)) return "Fail mesti gambar (JPG/PNG) atau PDF.";
+      if (f.size > cfg.SAIZ_RESIT_MAKS_MB * 1024 * 1024) return "Saiz fail melebihi " + cfg.SAIZ_RESIT_MAKS_MB + " MB.";
+      return "";
+    },
+    sahkan: function () { return $("sahkan").checked ? "" : "Sila tandakan pengesahan."; },
+  };
+
+  function validate(name) {
+    var el = $(name);
+    var msg = rules[name](el.value || "");
+    var errEl = form.querySelector('.err[data-for="' + name + '"]');
+    errEl.textContent = msg;
+    (name === "resit" ? drop : el).classList.toggle("invalid", !!msg);
+    return !msg;
+  }
+
+  ["sekolah", "pemimpin", "telefon", "bilangan"].forEach(function (name) {
+    $(name).addEventListener("blur", function () { validate(name); });
+  });
+  $("sahkan").addEventListener("change", function () { validate("sahkan"); });
+
+  // ---------- Hantar ----------
+  function readAsBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result).split(",")[1]); };
+      r.onerror = function () { reject(new Error("Gagal membaca fail resit.")); };
+      r.readAsDataURL(file);
+    });
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    formMsg.textContent = "";
+
+    if (isClosed()) { showClosed(); return; }
+
+    var ok = Object.keys(rules).map(validate).every(Boolean);
+    if (!ok) {
+      var first = form.querySelector(".err:not(:empty)");
+      if (first) first.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Menghantar…";
+
+    var done = function () {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Hantar tempahan";
+    };
+    var failed = function (msg) {
+      formMsg.textContent = msg || "Tempahan gagal dihantar. Sila semak sambungan internet dan cuba lagi.";
+      done();
+    };
+
+    var file = fileInput.files[0];
+    readAsBase64(file).then(function (b64) {
+      google.script.run
+        .withSuccessHandler(function (data) {
+          done();
+          if (!data || !data.ok) return failed(data && data.error);
+          showSuccess(data);
+        })
+        .withFailureHandler(function () { failed(); })
+        .hantarTempahan({
+          lencanaId: lencana.id,
+          sekolah: $("sekolah").value.trim(),
+          pemimpin: $("pemimpin").value.trim(),
+          telefon: normalisePhone($("telefon").value),
+          bilangan: parseInt($("bilangan").value, 10),
+          resit: { nama: file.name, jenis: file.type, data: b64 },
+        });
+    }, function (err) { failed(err.message); });
+  });
+
+  function showSuccess(data) {
+    var rows = [
+      ["No. rujukan", data.id, "ref"],
+      ["Lencana", data.lencana],
+      ["Sekolah", data.sekolah],
+      ["Pemimpin", data.pemimpin],
+      ["No. telefon", data.telefon],
+      ["Bilangan", data.bilangan],
+      ["Jumlah", rm(data.jumlah)],
+    ];
+
+    var dl = $("summary");
+    dl.innerHTML = "";
+    rows.forEach(function (r) {
+      var div = document.createElement("div");
+      if (r[2]) div.className = r[2];
+      var dt = document.createElement("dt");
+      var dd = document.createElement("dd");
+      dt.textContent = r[0];
+      dd.textContent = r[1];
+      div.appendChild(dt);
+      div.appendChild(dd);
+      dl.appendChild(div);
+    });
+
+    show("form", false);
+    show("success", true);
+    window.scrollTo({ top: $("success").offsetTop - 16, behavior: "smooth" });
+  }
+
+  function resetForm() {
+    form.reset();
+    formMsg.textContent = "";
+    form.querySelectorAll(".err").forEach(function (el) { el.textContent = ""; });
+    form.querySelectorAll(".invalid").forEach(function (el) { el.classList.remove("invalid"); });
+    $("dropTitle").textContent = "Pilih fail resit";
+    $("dropSub").textContent = dropSubDefault;
+    drop.classList.remove("has-file");
+    updateTotal();
+  }
+
+  $("againBtn").addEventListener("click", function () {
+    resetForm();
+    show("success", false);
+    if (isClosed()) { showClosed(); return; }
+    show("form", true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  load();
+})();
+  </script>
+</body>
+</html>

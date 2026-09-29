@@ -1,6 +1,7 @@
 /**
- * Backend borang tempahan lencana (Google Apps Script).
+ * Borang tempahan lencana (Google Apps Script web app).
  *
+ * - Borang dipaparkan terus oleh Apps Script (Index.html).
  * - Senarai lencana diurus dalam tab "Senarai Lencana". Untuk buka tempahan
  *   lencana baru, tambah satu baris di situ — tiada kod perlu diubah.
  * - Setiap tempahan disimpan dalam tab "Tempahan".
@@ -11,6 +12,11 @@
  */
 
 // ====== TETAPAN ======
+var BANK = {
+  nama: 'PERSEKUTUAN PENGAKAP MALAYSIA DAERAH KINTA UTARA',
+  noAkaun: '558172816191',
+  bank: 'MAYBANK',
+};
 var SHEET_LENCANA = 'Senarai Lencana';
 var SHEET_TEMPAHAN = 'Tempahan';
 var FOLDER_NAME = 'Resit Tempahan Lencana';
@@ -25,38 +31,45 @@ var HEADERS_TEMPAHAN = [
   'Nama Pemimpin', 'No. Telefon', 'Bilangan', 'Harga Seunit (RM)', 'Jumlah (RM)', 'Pautan Resit',
 ];
 
-// Lencana pertama yang dimasukkan semasa setup().
+// Lencana pertama yang dimasukkan semasa setup(). Isi lajur Gambar dengan pautan Drive kemudian.
 var CONTOH_LENCANA = [
   'AKPN26', 'Anugerah Ketua Pengakap Negara 2026', 'Rambu Pengakap Kanak-kanak',
-  5, new Date('2026-10-02T23:00:00+08:00'), 'assets/lencana.jpg', 'YA',
+  5, new Date('2026-10-02T23:00:00+08:00'), '', 'YA',
 ];
 
-/** GET: senarai lencana aktif untuk dipaparkan di borang. */
+/** Paparkan borang. */
 function doGet() {
+  return HtmlService.createHtmlOutputFromFile('Index')
+    .setTitle('Tempahan Lencana Pengakap')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+/** Dipanggil oleh borang: maklumat bank dan senarai lencana aktif. */
+function getData() {
   try {
     var now = new Date();
     var list = getLencana_().filter(function (l) { return l.aktif; }).map(function (l) {
       return {
         id: l.id, nama: l.nama, keterangan: l.keterangan, harga: l.harga,
-        tarikhAkhir: l.tarikhAkhir.toISOString(), gambar: l.gambar, dibuka: now <= l.tarikhAkhir,
+        tarikhAkhir: l.tarikhAkhir.toISOString(), gambar: gambarSrc_(l.gambar),
+        dibuka: now <= l.tarikhAkhir,
       };
     });
-    return json_({ ok: true, lencana: list });
+    return { ok: true, bank: BANK, saizResitMaksMB: SAIZ_RESIT_MAKS_MB, lencana: list };
   } catch (err) {
     console.error(err);
-    return json_({ ok: false, error: 'Gagal memuatkan senarai lencana.' });
+    return { ok: false, error: 'Gagal memuatkan senarai lencana.' };
   }
 }
 
-/** POST: terima tempahan baru. */
-function doPost(e) {
+/** Dipanggil oleh borang: terima tempahan baru. */
+function hantarTempahan(d) {
   try {
-    var d = JSON.parse(e.postData.contents);
-
+    d = d || {};
     var lencana = getLencana_().filter(function (l) { return l.aktif && l.id === String(d.lencanaId); })[0];
-    if (!lencana) return json_({ ok: false, error: 'Lencana tidak dijumpai atau tidak lagi dibuka.' });
+    if (!lencana) return { ok: false, error: 'Lencana tidak dijumpai atau tidak lagi dibuka.' };
     if (new Date() > lencana.tarikhAkhir) {
-      return json_({ ok: false, error: 'Tempahan untuk lencana ini telah ditutup.' });
+      return { ok: false, error: 'Tempahan untuk lencana ini telah ditutup.' };
     }
 
     var sekolah = clean_(d.sekolah, 150);
@@ -64,21 +77,21 @@ function doPost(e) {
     var telefon = String(d.telefon || '').replace(/\D/g, '');
     var bilangan = Number(d.bilangan);
 
-    if (sekolah.length < 3) return json_({ ok: false, error: 'Nama sekolah tidak sah.' });
-    if (pemimpin.length < 3) return json_({ ok: false, error: 'Nama pemimpin tidak sah.' });
-    if (!/^01\d{8,9}$/.test(telefon)) return json_({ ok: false, error: 'No. telefon tidak sah.' });
+    if (sekolah.length < 3) return { ok: false, error: 'Nama sekolah tidak sah.' };
+    if (pemimpin.length < 3) return { ok: false, error: 'Nama pemimpin tidak sah.' };
+    if (!/^01\d{8,9}$/.test(telefon)) return { ok: false, error: 'No. telefon tidak sah.' };
     if (!(bilangan >= 1 && bilangan <= 1000 && Math.floor(bilangan) === bilangan)) {
-      return json_({ ok: false, error: 'Bilangan lencana tidak sah.' });
+      return { ok: false, error: 'Bilangan lencana tidak sah.' };
     }
 
     var r = d.resit || {};
     var jenis = String(r.jenis || '');
     if (!r.data || !/^image\/|^application\/pdf$/.test(jenis)) {
-      return json_({ ok: false, error: 'Resit mesti gambar atau PDF.' });
+      return { ok: false, error: 'Resit mesti gambar atau PDF.' };
     }
     var bytes = Utilities.base64Decode(r.data);
     if (bytes.length > SAIZ_RESIT_MAKS_MB * 1024 * 1024) {
-      return json_({ ok: false, error: 'Saiz resit melebihi ' + SAIZ_RESIT_MAKS_MB + ' MB.' });
+      return { ok: false, error: 'Saiz resit melebihi ' + SAIZ_RESIT_MAKS_MB + ' MB.' };
     }
 
     var jumlah = Math.round(bilangan * lencana.harga * 100) / 100;
@@ -110,13 +123,13 @@ function doPost(e) {
         '\nJumlah: RM ' + jumlah.toFixed(2) + '\nResit: ' + fail.getUrl());
     }
 
-    return json_({
+    return {
       ok: true, id: id, lencana: lencana.nama, sekolah: sekolah, pemimpin: pemimpin,
       telefon: telefon, bilangan: bilangan, jumlah: jumlah,
-    });
+    };
   } catch (err) {
     console.error(err);
-    return json_({ ok: false, error: 'Ralat pelayan. Sila cuba lagi sebentar.' });
+    return { ok: false, error: 'Ralat pelayan. Sila cuba lagi sebentar.' };
   }
 }
 
@@ -139,6 +152,24 @@ function getLencana_() {
     .filter(function (l) {
       return l.id && l.nama && l.harga > 0 && !isNaN(l.tarikhAkhir.getTime());
     });
+}
+
+/**
+ * Lajur Gambar boleh diisi dengan pautan fail Google Drive (atau ID fail),
+ * atau pautan gambar biasa (https://...). Gambar Drive dihantar sebagai data URI
+ * supaya tidak perlu dikongsi secara umum.
+ */
+function gambarSrc_(v) {
+  if (!v) return '';
+  var m = v.match(/\/d\/([\w-]{20,})/) || v.match(/[?&]id=([\w-]{20,})/) || v.match(/^([\w-]{20,})$/);
+  if (!m) return /^https?:\/\//.test(v) ? v : '';
+  try {
+    var blob = DriveApp.getFileById(m[1]).getBlob();
+    return 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes());
+  } catch (e) {
+    console.warn('Gambar tidak dapat dibaca: ' + v);
+    return '';
+  }
 }
 
 /** No. rujukan berjujukan bagi setiap lencana, cth. AKPN26-0001. Mesti dipanggil dalam lock. */
@@ -207,14 +238,12 @@ function clean_(v, max) {
   return String(v || '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-function json_(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
 /** Jalankan sekali dari editor untuk cipta tab/folder dan memberi kebenaran. */
 function setup() {
-  SpreadsheetApp.getActiveSpreadsheet().setSpreadsheetTimeZone('Asia/Kuala_Lumpur');
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  ss.setSpreadsheetTimeZone('Asia/Kuala_Lumpur');
+  // Format tarikh hari/bulan/tahun supaya 2/10/2026 dibaca sebagai 2 Oktober.
+  ss.setSpreadsheetLocale('en_GB');
   getLencanaSheet_();
   getTempahanSheet_();
   getFolder_();

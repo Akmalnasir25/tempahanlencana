@@ -85,12 +85,17 @@ Ciri keselamatan:
 
 Jika anda terlupa kata laluan, tetapkan semula melalui menu **Lencana → Tetapkan kata laluan admin**.
 
-## Tambah tempahan lencana baru
+## Tambah, sunting atau padam lencana
 
-Cara paling mudah: **Lencana → Tambah lencana baru** dalam Google Sheet, atau tab **Tambah lencana** dalam paparan admin.
-Isi ID, nama, harga, tarikh akhir dan pilih gambar. Lencana terus dibuka untuk tempahan, dan gambar disimpan dalam folder Drive *Resit Tempahan Lencana/Gambar Lencana*.
+**Tambah:** dalam paparan admin, buka tab **Tambah lencana** (atau menu **Lencana → Tambah lencana baru** dalam Google Sheet). Isi ID, nama, harga, tarikh akhir dan pilih gambar. Lencana terus dibuka untuk tempahan, dan gambar disimpan dalam folder Drive *Resit Tempahan Lencana/Gambar Lencana*.
 
-Anda juga boleh menambah satu baris terus dalam tab **Senarai Lencana**:
+**Sunting atau padam:** dalam paparan admin, buka tab **Urus lencana** (atau menu **Lencana → Sunting / padam lencana**), kemudian pilih lencana.
+
+- **Sunting:** nama, keterangan, harga, tarikh akhir, status *Aktif* dan gambar boleh diubah. ID tidak boleh ditukar kerana digunakan dalam no. rujukan tempahan.
+- **Tutup tempahan tanpa memadam:** nyahtanda *Aktif* dan simpan. Lencana tidak lagi dipaparkan di borang.
+- **Padam:** lencana dibuang dari tab *Senarai Lencana* dan dari borang. Tempahan dan resit yang sudah diterima **tidak** dipadam, dan masih kelihatan dalam senarai tempahan.
+
+Anda juga boleh menambah atau mengubah baris terus dalam tab **Senarai Lencana**:
 
 | Lajur | Contoh | Nota |
 |---|---|---|

@@ -123,6 +123,12 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
 .msg.err { color: var(--danger); }
 .msg:empty { display: none; }
 .narrow { max-width: 460px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+button.btn.danger { background: var(--danger); color: #fff; }
+.check { display: flex; gap: 8px; align-items: center; font-weight: 600; margin: 4px 0 14px; }
+.check input { width: 18px; height: 18px; margin: 0; accent-color: var(--navy); }
+.confirm { margin-top: 14px; padding: 12px; border: 1.5px solid var(--danger); border-radius: 10px; background: #fdf1f1; }
+.confirm p { margin: 0; }
 .header-actions { display: flex; gap: 14px; align-items: center; }
 .header-actions button { background: none; border: 0; color: #fff; font: inherit; font-weight: 600; cursor: pointer; padding: 0; opacity: .85; }
 .login { max-width: 360px; margin: 40px auto; background: var(--card); border-radius: 14px; padding: 24px; box-shadow: 0 6px 24px rgba(11, 26, 92, .08); }
@@ -156,7 +162,7 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
   <nav class="tabs">
     <button type="button" class="tab" data-tab="tempahan">Senarai tempahan</button>
     <button type="button" class="tab" data-tab="tambah">Tambah lencana</button>
-    <button type="button" class="tab" data-tab="gambar">Gambar lencana</button>
+    <button type="button" class="tab" data-tab="urus">Urus lencana</button>
     <button type="button" class="tab" data-tab="tetapan">Kata laluan</button>
   </nav>
 
@@ -242,19 +248,59 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
     </section>
 
     <!-- ===== Gambar lencana ===== -->
-    <section class="panel hidden" id="tab-gambar">
-      <form id="formGambar" class="narrow" novalidate>
+    <section class="panel hidden" id="tab-urus">
+      <form id="formUrus" class="narrow" novalidate>
         <div class="field">
-          <label for="gId">Lencana</label>
-          <select id="gId"></select>
+          <label for="uId">Pilih lencana</label>
+          <select id="uId"></select>
+          <p class="help" id="uInfo"></p>
         </div>
-        <div class="field">
-          <label for="gGambar">Gambar baru</label>
-          <input type="file" id="gGambar" accept="image/*">
-          <img id="gPreview" class="preview hidden" alt="">
+        <div id="uBorang" class="hidden">
+          <div class="field">
+            <label for="uNama">Nama lencana</label>
+            <input type="text" id="uNama" maxlength="150">
+          </div>
+          <div class="field">
+            <label for="uKet">Keterangan (pilihan)</label>
+            <input type="text" id="uKet" maxlength="200">
+          </div>
+          <div class="field">
+            <label for="uHarga">Harga seunit (RM)</label>
+            <input type="number" id="uHarga" min="0.01" step="0.01" inputmode="decimal">
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="uTarikh">Tarikh akhir</label>
+              <input type="date" id="uTarikh">
+            </div>
+            <div class="field">
+              <label for="uMasa">Masa</label>
+              <input type="time" id="uMasa">
+            </div>
+          </div>
+          <label class="check">
+            <input type="checkbox" id="uAktif">
+            <span>Aktif (dipaparkan di borang tempahan)</span>
+          </label>
+          <div class="field">
+            <label for="uGambar">Tukar gambar (pilihan)</label>
+            <input type="file" id="uGambar" accept="image/*">
+            <p class="help">Biarkan kosong untuk kekalkan gambar sedia ada.</p>
+            <img id="uPreview" class="preview hidden" alt="">
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn" id="uSimpan">Simpan perubahan</button>
+            <button type="button" class="btn danger" id="uPadam">Padam lencana</button>
+          </div>
+          <div class="confirm hidden" id="uSahPadam">
+            <p id="uSahTeks"></p>
+            <div class="actions">
+              <button type="button" class="btn danger" id="uYaPadam">Ya, padam</button>
+              <button type="button" class="btn secondary" id="uBatal">Batal</button>
+            </div>
+          </div>
         </div>
-        <button type="submit" class="btn" id="gHantar">Muat naik gambar</button>
-        <p class="msg" id="gMsg"></p>
+        <p class="msg" id="uMsg"></p>
       </form>
     </section>
     <!-- ===== Tukar kata laluan ===== -->
@@ -379,12 +425,12 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
     document.querySelectorAll(".tab").forEach(function (t) {
       t.classList.toggle("active", t.getAttribute("data-tab") === name);
     });
-    ["tempahan", "tambah", "gambar", "tetapan"].forEach(function (n) { $("tab-" + n).classList.toggle("hidden", n !== name); });
+    ["tempahan", "tambah", "urus", "tetapan"].forEach(function (n) { $("tab-" + n).classList.toggle("hidden", n !== name); });
   }
   document.querySelectorAll(".tab").forEach(function (t) {
     t.addEventListener("click", function () { bukaTab(t.getAttribute("data-tab")); });
   });
-  bukaTab(["tempahan", "tambah", "gambar"].indexOf(MODE) >= 0 ? MODE : "tempahan");
+  bukaTab(["tempahan", "tambah", "urus"].indexOf(MODE) >= 0 ? MODE : "tempahan");
 
   // ---------- Senarai tempahan ----------
   function muat() {
@@ -405,11 +451,12 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
   $("muatSemula").addEventListener("click", muat);
 
   function isiPilihan() {
-    var f = $("filterLencana"), g = $("gId");
+    var f = $("filterLencana"), g = $("uId");
     var pilihF = f.value, pilihG = g.value;
     f.innerHTML = "";
     g.innerHTML = "";
     f.appendChild(new Option("Semua lencana", ""));
+    g.appendChild(new Option("— Pilih lencana —", ""));
     data.lencana.forEach(function (l) {
       f.appendChild(new Option(l.id + " — " + l.nama, l.id));
       g.appendChild(new Option(l.id + " — " + l.nama, l.id));
@@ -421,11 +468,15 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
       }
     });
     f.value = pilihF;
-    if (pilihG) g.value = pilihG;
+    if (f.value !== pilihF) f.value = "";
+    g.value = pilihG;
+    if (g.value !== pilihG) g.value = "";
+    isiUrus();
   }
 
   function status(l) {
     if (!l.aktif) return ["Tidak aktif", "off"];
+    if (!l.tarikhAkhir) return ["Tarikh tidak sah", "closed"];
     return new Date(l.tarikhAkhir) < new Date() ? ["Ditutup", "closed"] : ["Dibuka", "open"];
   }
 
@@ -574,7 +625,7 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
     });
   }
   pratonton($("tGambar"), $("tPreview"));
-  pratonton($("gGambar"), $("gPreview"));
+  pratonton($("uGambar"), $("uPreview"));
 
   function mesej(id, text, ok) {
     $(id).textContent = text;
@@ -617,23 +668,101 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
     }, function (err) { btn.disabled = false; mesej("tMsg", err.message); });
   });
 
-  // ---------- Tukar gambar ----------
-  $("formGambar").addEventListener("submit", function (e) {
+  // ---------- Urus lencana (sunting / padam) ----------
+  function lencanaDipilih() {
+    var id = $("uId").value;
+    return data.lencana.filter(function (l) { return l.id === id; })[0];
+  }
+
+  // Tarikh ISO -> { tarikh: "2026-10-02", masa: "23:00" } dalam waktu Malaysia.
+  function kePilihanTarikh(iso) {
+    if (!iso) return { tarikh: "", masa: "23:00" };
+    var p = {};
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kuala_Lumpur", year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(new Date(iso)).forEach(function (x) { p[x.type] = x.value; });
+    return { tarikh: p.year + "-" + p.month + "-" + p.day, masa: p.hour + ":" + p.minute };
+  }
+
+  function bilTempahan(id) {
+    return data.tempahan.filter(function (t) { return t.lencanaId === id; }).length;
+  }
+
+  function isiUrus() {
+    var l = lencanaDipilih();
+    $("uSahPadam").classList.add("hidden");
+    $("uBorang").classList.toggle("hidden", !l);
+    if (!l) { $("uInfo").textContent = ""; return; }
+    var t = kePilihanTarikh(l.tarikhAkhir);
+    $("uNama").value = l.nama;
+    $("uKet").value = l.keterangan || "";
+    $("uHarga").value = l.harga ? Number(l.harga).toFixed(2) : "";
+    $("uTarikh").value = t.tarikh;
+    $("uMasa").value = t.masa;
+    $("uAktif").checked = !!l.aktif;
+    $("uGambar").value = "";
+    $("uPreview").classList.add("hidden");
+    $("uInfo").textContent = "ID: " + l.id + " (tidak boleh ditukar) · " + bilTempahan(l.id) +
+      " tempahan · " + status(l)[0] + (l.adaGambar ? "" : " · tiada gambar");
+  }
+  $("uId").addEventListener("change", function () { $("uMsg").textContent = ""; isiUrus(); });
+
+  $("formUrus").addEventListener("submit", function (e) {
     e.preventDefault();
-    var btn = $("gHantar");
-    var id = $("gId").value;
-    if (!id) return mesej("gMsg", "Tiada lencana dalam Sheet.");
+    var l = lencanaDipilih();
+    if (!l) return mesej("uMsg", "Sila pilih lencana.");
+    var d = {
+      nama: $("uNama").value.trim(),
+      keterangan: $("uKet").value.trim(),
+      harga: $("uHarga").value,
+      tarikh: $("uTarikh").value,
+      masa: $("uMasa").value || "23:00",
+      aktif: $("uAktif").checked,
+    };
+    if (d.nama.length < 3) return mesej("uMsg", "Sila masukkan nama lencana.");
+    if (!(Number(d.harga) > 0)) return mesej("uMsg", "Sila masukkan harga seunit.");
+    if (!d.tarikh) return mesej("uMsg", "Sila pilih tarikh akhir.");
+
+    var btn = $("uSimpan");
     btn.disabled = true;
-    mesej("gMsg", "Memuat naik…", true);
-    sediaGambar($("gGambar").files[0]).then(function (g) {
-      api("tukarGambar", [id, g], function () {
-          btn.disabled = false;
-          $("formGambar").reset();
-          $("gId").value = id;
-          $("gPreview").classList.add("hidden");
-          mesej("gMsg", "Gambar lencana " + id + " berjaya dikemas kini.", true);
-        }, function (err) { btn.disabled = false; if (err) mesej("gMsg", errMsg(err)); });
-    }, function (err) { btn.disabled = false; mesej("gMsg", err.message); });
+    mesej("uMsg", "Menyimpan…", true);
+    var file = $("uGambar").files[0];
+    (file ? sediaGambar(file) : Promise.resolve(null)).then(function (g) {
+      if (g) d.gambar = g;
+      api("kemaskiniLencana", [l.id, d], function () {
+        btn.disabled = false;
+        mesej("uMsg", "Lencana " + l.id + " berjaya dikemas kini.", true);
+        muat();
+      }, function (err) { btn.disabled = false; if (err) mesej("uMsg", errMsg(err)); });
+    }, function (err) { btn.disabled = false; mesej("uMsg", err.message); });
+  });
+
+  $("uPadam").addEventListener("click", function () {
+    var l = lencanaDipilih();
+    if (!l) return;
+    var n = bilTempahan(l.id);
+    $("uMsg").textContent = "";
+    $("uSahTeks").textContent = "Padam lencana " + l.id + " (" + l.nama + ")? " +
+      (n ? "Ada " + n + " tempahan untuk lencana ini. Tempahan dan resit TIDAK akan dipadam, " +
+           "tetapi lencana ini akan hilang dari borang. Jika hanya mahu menutup tempahan, " +
+           "nyahtanda \"Aktif\" dan simpan."
+         : "Lencana ini akan hilang dari borang tempahan.");
+    $("uSahPadam").classList.remove("hidden");
+  });
+  $("uBatal").addEventListener("click", function () { $("uSahPadam").classList.add("hidden"); });
+
+  $("uYaPadam").addEventListener("click", function () {
+    var l = lencanaDipilih();
+    if (!l) return;
+    var btn = $("uYaPadam");
+    btn.disabled = true;
+    api("padamLencana", [l.id], function () {
+      btn.disabled = false;
+      $("uId").value = "";
+      mesej("uMsg", "Lencana " + l.id + " telah dipadam.", true);
+      muat();
+    }, function (err) { btn.disabled = false; if (err) mesej("uMsg", errMsg(err)); });
   });
 
   // ---------- Tukar kata laluan ----------

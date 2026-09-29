@@ -269,7 +269,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('Lencana')
     .addItem('Paparan admin (senarai tempahan)', 'menuPaparanAdmin')
     .addItem('Tambah lencana baru', 'menuTambahLencana')
-    .addItem('Tukar / muat naik gambar lencana', 'menuTukarGambar')
+    .addItem('Sunting / padam lencana', 'menuUrusLencana')
     .addSeparator()
     .addItem('Tetapkan kata laluan admin', 'menuKataLaluan')
     .addToUi();
@@ -277,7 +277,7 @@ function onOpen() {
 
 function menuPaparanAdmin() { bukaAdmin_('tempahan', 'Paparan admin'); }
 function menuTambahLencana() { bukaAdmin_('tambah', 'Tambah lencana baru'); }
-function menuTukarGambar() { bukaAdmin_('gambar', 'Tukar / muat naik gambar lencana'); }
+function menuUrusLencana() { bukaAdmin_('urus', 'Sunting / padam lencana'); }
 
 function bukaAdmin_(mode, tajuk) {
   var t = HtmlService.createTemplateFromFile('Admin');
@@ -287,20 +287,14 @@ function bukaAdmin_(mode, tajuk) {
   SpreadsheetApp.getUi().showModelessDialog(html, tajuk);
 }
 
-/** ID dan nama semua lencana dalam Sheet (termasuk yang tidak aktif). */
-function senaraiId_() {
-  var sheet = getLencanaSheet_();
-  if (sheet.getLastRow() < 2) return [];
-  return sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues()
-    .filter(function (r) { return String(r[0]).trim(); })
-    .map(function (r) { return { id: String(r[0]).trim(), nama: String(r[1]).trim() }; });
-}
-
 /** Dipanggil oleh paparan admin: semua lencana dan tempahan. */
 function adminTempahan(token) {
   pastikanAdmin_(token);
-  var lencana = getLencana_().map(function (l) {
-    return { id: l.id, nama: l.nama, harga: l.harga, tarikhAkhir: l.tarikhAkhir.toISOString(), aktif: l.aktif };
+  var lencana = semuaLencana_().map(function (l) {
+    return {
+      id: l.id, nama: l.nama, keterangan: l.keterangan, harga: l.harga, aktif: l.aktif,
+      tarikhAkhir: isNaN(l.tarikhAkhir.getTime()) ? '' : l.tarikhAkhir.toISOString(), adaGambar: !!l.gambar,
+    };
   });
   var sheet = getTempahanSheet_();
   var tempahan = sheet.getLastRow() < 2 ? [] :
@@ -316,47 +310,105 @@ function adminTempahan(token) {
   return { lencana: lencana, tempahan: tempahan, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() };
 }
 
-/** Dipanggil oleh dialog admin: tambah satu baris lencana baru. */
+/** Semak dan bersihkan input borang lencana (tambah / sunting). */
+function bacaInputLencana_(d) {
+  var v = {
+    nama: clean_(d.nama, 150),
+    keterangan: clean_(d.keterangan, 200),
+    harga: Math.round(Number(d.harga) * 100) / 100,
+    tarikhAkhir: new Date(d.tarikh + 'T' + (d.masa || '23:00') + ':00+08:00'),
+  };
+  if (v.nama.length < 3) throw new Error('Sila masukkan nama lencana.');
+  if (!(v.harga > 0)) throw new Error('Harga tidak sah.');
+  if (isNaN(v.tarikhAkhir.getTime())) throw new Error('Tarikh akhir tidak sah.');
+  return v;
+}
+
+/** Nombor baris (dalam tab Senarai Lencana) bagi ID lencana, atau 0 jika tiada. */
+function cariBaris_(id) {
+  var sheet = getLencanaSheet_();
+  if (sheet.getLastRow() < 2) return 0;
+  var ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]).trim().toUpperCase() === String(id).trim().toUpperCase()) return i + 2;
+  }
+  return 0;
+}
+
+/** Semua baris lencana yang ada ID (termasuk tidak aktif / tidak lengkap). */
+function semuaLencana_() {
+  var sheet = getLencanaSheet_();
+  if (sheet.getLastRow() < 2) return [];
+  return sheet.getRange(2, 1, sheet.getLastRow() - 1, HEADERS_LENCANA.length).getValues()
+    .filter(function (r) { return String(r[0]).trim(); })
+    .map(function (r) {
+      return {
+        id: String(r[0]).trim(), nama: String(r[1]).trim(), keterangan: String(r[2]).trim(),
+        harga: Number(r[3]) || 0, tarikhAkhir: r[4] instanceof Date ? r[4] : new Date(r[4]),
+        gambar: String(r[5]).trim(), aktif: /^(ya|y|yes|true|1)$/i.test(String(r[6]).trim()),
+      };
+    });
+}
+
+/** Dipanggil oleh paparan admin: tambah satu baris lencana baru. */
 function tambahLencana(token, d) {
   pastikanAdmin_(token);
   var id = String(d.id || '').trim().toUpperCase();
-  var nama = clean_(d.nama, 150);
-  var keterangan = clean_(d.keterangan, 200);
-  var harga = Math.round(Number(d.harga) * 100) / 100;
-  var tarikhAkhir = new Date(d.tarikh + 'T' + d.masa + ':00+08:00');
-
   if (!/^[A-Z0-9]{2,15}$/.test(id)) throw new Error('ID mesti 2-15 huruf/nombor tanpa ruang.');
-  if (nama.length < 3) throw new Error('Sila masukkan nama lencana.');
-  if (!(harga > 0)) throw new Error('Harga tidak sah.');
-  if (isNaN(tarikhAkhir.getTime())) throw new Error('Tarikh akhir tidak sah.');
+  var v = bacaInputLencana_(d);
   if (!d.gambar) throw new Error('Sila pilih gambar lencana.');
 
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    var ada = senaraiId_().some(function (l) { return l.id.toUpperCase() === id; });
-    if (ada) throw new Error('ID "' + id + '" sudah digunakan. Sila guna ID lain.');
+    if (cariBaris_(id)) throw new Error('ID "' + id + '" sudah digunakan. Sila guna ID lain.');
     var url = simpanGambar_(id, d.gambar);
-    getLencanaSheet_().appendRow([id, nama, keterangan, harga, tarikhAkhir, url, 'YA']);
+    getLencanaSheet_().appendRow([id, v.nama, v.keterangan, v.harga, v.tarikhAkhir, url, 'YA']);
   } finally {
     lock.releaseLock();
   }
-  return { id: id, nama: nama };
+  return { id: id, nama: v.nama };
 }
 
-/** Dipanggil oleh dialog admin: tukar gambar bagi lencana sedia ada. */
-function tukarGambar(token, id, gambar) {
+/**
+ * Dipanggil oleh paparan admin: sunting butiran lencana sedia ada.
+ * ID tidak boleh ditukar kerana digunakan dalam no. rujukan tempahan.
+ * Gambar hanya ditukar jika gambar baru dihantar.
+ */
+function kemaskiniLencana(token, id, d) {
   pastikanAdmin_(token);
-  if (!gambar) throw new Error('Sila pilih gambar lencana.');
-  var sheet = getLencanaSheet_();
-  var ids = sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 1), 1).getValues();
-  for (var i = 0; i < ids.length; i++) {
-    if (String(ids[i][0]).trim() === id) {
-      sheet.getRange(i + 2, 6).setValue(simpanGambar_(id, gambar));
-      return { id: id };
-    }
+  var v = bacaInputLencana_(d);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var row = cariBaris_(id);
+    if (!row) throw new Error('Lencana "' + id + '" tidak dijumpai.');
+    var sheet = getLencanaSheet_();
+    sheet.getRange(row, 2, 1, 4).setValues([[v.nama, v.keterangan, v.harga, v.tarikhAkhir]]);
+    sheet.getRange(row, 7).setValue(d.aktif ? 'YA' : 'TIDAK');
+    if (d.gambar) sheet.getRange(row, 6).setValue(simpanGambar_(id, d.gambar));
+  } finally {
+    lock.releaseLock();
   }
-  throw new Error('Lencana "' + id + '" tidak dijumpai.');
+  return { id: id, nama: v.nama };
+}
+
+/**
+ * Dipanggil oleh paparan admin: padam lencana dari Senarai Lencana.
+ * Tempahan sedia ada dan resit TIDAK dipadam.
+ */
+function padamLencana(token, id) {
+  pastikanAdmin_(token);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var row = cariBaris_(id);
+    if (!row) throw new Error('Lencana "' + id + '" tidak dijumpai.');
+    getLencanaSheet_().deleteRow(row);
+  } finally {
+    lock.releaseLock();
+  }
+  return { id: id };
 }
 
 /** Simpan gambar lencana ke folder Drive "Gambar Lencana" dan pulangkan pautannya. */

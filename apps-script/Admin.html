@@ -127,6 +127,29 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
 button.btn.danger { background: var(--danger); color: #fff; }
 .check { display: flex; gap: 8px; align-items: center; font-weight: 600; margin: 4px 0 14px; }
 .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--navy); }
+textarea { width: 100%; padding: 10px 12px; font: .9rem/1.45 ui-monospace, Consolas, monospace; border: 1.5px solid var(--line); border-radius: 8px; }
+a.wa-btn { display: inline-block; background: #1a8f4c; color: #fff; text-decoration: none; border-radius: 8px; padding: 6px 12px; white-space: nowrap; }
+a.wa-btn.off { background: #c4c9d1; cursor: not-allowed; }
+.print-only { display: none; }
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  body { background: #fff; font-size: 10.5px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  header, .tabs, .toolbar, .no-print, #tempahanMsg, .help, #tab-tempahan > .msg { display: none !important; }
+  .print-only { display: block; margin-bottom: 8px; }
+  .print-only h1 { font-size: 16px; margin: 0; color: var(--navy-deep); }
+  .print-only p { margin: 2px 0 0; color: var(--muted); }
+  main { padding: 0; }
+  .panel { padding: 0; border-radius: 0; }
+  .stats { margin-bottom: 6px; }
+  .stat { padding: 6px 10px; }
+  .stat .v { font-size: 1.1rem; }
+  h2 { margin: 12px 0 4px; break-after: avoid; }
+  .table-wrap { overflow: visible; border: 0; }
+  th { position: static; }
+  td, th { padding: 4px 6px; }
+  tr { break-inside: avoid; }
+  a { color: inherit; text-decoration: none; font-weight: inherit; }
+}
 .confirm { margin-top: 14px; padding: 12px; border: 1.5px solid var(--danger); border-radius: 10px; background: #fdf1f1; }
 .confirm p { margin: 0; }
 .header-actions { display: flex; gap: 14px; align-items: center; }
@@ -163,6 +186,7 @@ button.btn.danger { background: var(--danger); color: #fff; }
     <button type="button" class="tab" data-tab="tempahan">Senarai tempahan</button>
     <button type="button" class="tab" data-tab="tambah">Tambah lencana</button>
     <button type="button" class="tab" data-tab="urus">Urus lencana</button>
+    <button type="button" class="tab" data-tab="blast">Blast WhatsApp</button>
     <button type="button" class="tab" data-tab="tetapan">Kata laluan</button>
   </nav>
 
@@ -173,14 +197,20 @@ button.btn.danger { background: var(--danger); color: #fff; }
         <select id="filterLencana"></select>
         <input type="search" id="cari" placeholder="Cari sekolah, pemimpin, no. rujukan…">
         <button type="button" class="btn secondary" id="muatSemula">Muat semula</button>
+        <button type="button" class="btn" id="cetak">🖨 Cetak</button>
       </div>
       <p class="msg err" id="tempahanMsg"></p>
+      <div class="print-only">
+        <h1>Senarai Tempahan Lencana · Pengakap Daerah Kinta Utara</h1>
+        <p id="cetakInfo"></p>
+      </div>
 
       <div class="stats">
         <div class="stat"><div class="k">Bilangan tempahan</div><div class="v" id="statTempahan">–</div></div>
         <div class="stat"><div class="k">Jumlah lencana</div><div class="v" id="statLencana">–</div></div>
         <div class="stat"><div class="k">Jumlah bayaran</div><div class="v" id="statBayaran">–</div></div>
       </div>
+      <p class="help hidden" id="statTambahan"></p>
 
       <div id="ringkasanWrap">
         <h2>Ringkasan mengikut lencana</h2>
@@ -207,8 +237,8 @@ button.btn.danger { background: var(--danger); color: #fff; }
         <table>
           <thead>
             <tr>
-              <th class="num">#</th><th>Sekolah</th><th class="num">Bilangan</th><th class="num">Jumlah (RM)</th><th>Resit</th>
-              <th>Lencana</th><th>Pemimpin</th><th>Telefon</th><th>No. rujukan</th><th>Tarikh</th>
+              <th class="num">#</th><th>Sekolah</th><th class="num">Bilangan</th><th class="num">Jumlah (RM)</th><th class="no-print">Resit</th>
+              <th>Kenaikan harga</th><th>Lencana</th><th>Pemimpin</th><th>Telefon</th><th>No. rujukan</th><th>Tarikh</th>
             </tr>
           </thead>
           <tbody id="senarai"></tbody>
@@ -339,6 +369,39 @@ button.btn.danger { background: var(--danger); color: #fff; }
         <p class="msg" id="klMsg"></p>
       </form>
     </section>
+    <!-- ===== Blast WhatsApp ===== -->
+    <section class="panel hidden" id="tab-blast">
+      <p class="help" style="margin:0 0 12px">Hantar mesej WhatsApp kepada setiap pemimpin bagi satu lencana. Tekan <b>Hantar</b> → WhatsApp dibuka dengan mesej siap ditaip → tekan Send. Mesej dihantar daripada nombor WhatsApp anda sendiri.</p>
+      <div class="toolbar">
+        <select id="bLencana"></select>
+        <select id="bJenis">
+          <option value="kenaikan">Kenaikan harga (bayaran tambahan)</option>
+          <option value="umum">Makluman umum</option>
+        </select>
+        <select id="bSasaran">
+          <option value="belum">Belum beri maklum balas kenaikan harga</option>
+          <option value="semua">Semua pemimpin</option>
+          <option value="tidak">Tidak setuju kenaikan harga</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="bTpl">Templat mesej (gantikan bahagian [ ] dahulu)</label>
+        <textarea id="bTpl" rows="14"></textarea>
+        <p class="help">Diisi automatik: {nama} {sekolah} {lencana} {senarai} {bilangan} {jumlah} {hargaLama} {hargaBaru} {tambahan} {telefon} {pautan} {bank}</p>
+        <p class="msg err" id="bAmaran"></p>
+        <div class="actions" style="margin-top:8px">
+          <button type="button" class="btn secondary" id="bAsal">Guna templat asal</button>
+          <button type="button" class="btn secondary" id="bReset">Set semula tanda dihantar</button>
+        </div>
+      </div>
+      <h2 id="bProg"></h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="num">#</th><th>Pemimpin</th><th>Sekolah</th><th class="num">Bilangan</th><th>Status</th><th>Mesej</th><th></th></tr></thead>
+          <tbody id="bSenarai"></tbody>
+        </table>
+      </div>
+    </section>
   </main>
   </div>
 
@@ -440,7 +503,7 @@ button.btn.danger { background: var(--danger); color: #fff; }
     document.querySelectorAll(".tab").forEach(function (t) {
       t.classList.toggle("active", t.getAttribute("data-tab") === name);
     });
-    ["tempahan", "tambah", "urus", "tetapan"].forEach(function (n) { $("tab-" + n).classList.toggle("hidden", n !== name); });
+    ["tempahan", "tambah", "urus", "blast", "tetapan"].forEach(function (n) { $("tab-" + n).classList.toggle("hidden", n !== name); });
   }
   document.querySelectorAll(".tab").forEach(function (t) {
     t.addEventListener("click", function () { bukaTab(t.getAttribute("data-tab")); });
@@ -458,12 +521,24 @@ button.btn.danger { background: var(--danger); color: #fff; }
         if (d.sheetUrl) { $("sheetLink").href = d.sheetUrl; $("sheetLink").classList.remove("hidden"); }
         isiPilihan();
         papar();
+        isiBlastLencana();
       }, function (e) {
         $("muatSemula").disabled = false;
         if (e) { $("app").classList.remove("hidden"); $("tempahanMsg").textContent = errMsg(e); }
       });
   }
   $("muatSemula").addEventListener("click", muat);
+
+  // Cetak paparan semasa (ikut tapisan lencana dan carian).
+  function isiInfoCetak() {
+    var f = $("filterLencana");
+    var q = $("cari").value.trim();
+    $("cetakInfo").textContent = (f.value ? f.options[f.selectedIndex].text : "Semua lencana") +
+      (q ? " · Carian: “" + q + "”" : "") +
+      " · Dicetak: " + new Date().toLocaleString("en-GB", { timeZone: "Asia/Kuala_Lumpur", dateStyle: "short", timeStyle: "short" });
+  }
+  window.addEventListener("beforeprint", isiInfoCetak);
+  $("cetak").addEventListener("click", function () { isiInfoCetak(); window.print(); });
 
   function isiPilihan() {
     var f = $("filterLencana"), g = $("uId");
@@ -511,6 +586,19 @@ button.btn.danger { background: var(--danger); color: #fff; }
     $("statLencana").textContent = jumBil;
     $("statBayaran").textContent = "RM " + rm(jumRM);
 
+    // Kenaikan harga: maklum balas pemimpin bagi tempahan pada harga lama
+    var kira = { SETUJU: 0, "TIDAK SETUJU": 0, BELUM: 0 }, jumTambahan = 0;
+    list.forEach(function (t) {
+      var s = statusTambahan(t);
+      if (!s) return;
+      kira[s]++;
+      if (s === "SETUJU") jumTambahan += t.tambahan;
+    });
+    var adaKenaikan = kira.SETUJU + kira["TIDAK SETUJU"] + kira.BELUM > 0;
+    $("statTambahan").classList.toggle("hidden", !adaKenaikan);
+    $("statTambahan").textContent = "Kenaikan harga: " + kira.SETUJU + " setuju (baki diterima RM " + rm(jumTambahan) + "), " +
+      kira["TIDAK SETUJU"] + " tidak setuju, " + kira.BELUM + " belum beri maklum balas.";
+
     // Ringkasan mengikut lencana (hanya bila "Semua lencana")
     $("ringkasanWrap").classList.toggle("hidden", !!pilih);
     var rb = $("ringkasan");
@@ -556,7 +644,7 @@ button.btn.danger { background: var(--danger); color: #fff; }
       tr.appendChild(el("td", t.sekolah, "wrap"));
       tr.appendChild(el("td", t.bilangan, "num big"));
       tr.appendChild(el("td", rm(t.jumlah), "num"));
-      var tdR = el("td");
+      var tdR = el("td", null, "no-print");
       if (/^https:\/\//.test(t.resit)) {
         var a = el("a", "Lihat");
         a.href = t.resit;
@@ -565,6 +653,7 @@ button.btn.danger { background: var(--danger); color: #fff; }
         tdR.appendChild(a);
       }
       tr.appendChild(tdR);
+      tr.appendChild(tdTambahan(t));
       tr.appendChild(el("td", t.lencanaId));
       tr.appendChild(el("td", t.pemimpin, "wrap"));
       var tdTel = el("td");
@@ -581,7 +670,7 @@ button.btn.danger { background: var(--danger); color: #fff; }
     });
     if (!list.length) {
       var trE = el("tr"), tdE = el("td", data.tempahan.length ? "Tiada tempahan sepadan." : "Belum ada tempahan.", "empty");
-      tdE.colSpan = 10; trE.appendChild(tdE); tb.appendChild(trE);
+      tdE.colSpan = 11; trE.appendChild(tdE); tb.appendChild(trE);
     }
 
     var tf = $("senaraiFoot");
@@ -594,11 +683,214 @@ button.btn.danger { background: var(--danger); color: #fff; }
       trF.appendChild(el("td", jumBil, "num big"));
       trF.appendChild(el("td", rm(jumRM), "num"));
       var tdX = el("td");
-      tdX.colSpan = 6;
+      tdX.colSpan = 7;
       trF.appendChild(tdX);
       tf.appendChild(trF);
     }
   }
+  // SETUJU / TIDAK SETUJU / BELUM bagi tempahan yang dibayar pada harga lama, atau "" jika tiada kenaikan.
+  function statusTambahan(t) {
+    if (t.statusTambahan) return t.statusTambahan;
+    var l = data.lencana.filter(function (x) { return x.id === t.lencanaId; })[0];
+    return l && l.harga > t.harga ? "BELUM" : "";
+  }
+
+  function tdTambahan(t) {
+    var td = el("td");
+    var s = statusTambahan(t);
+    if (!s) return td;
+    td.appendChild(el("span", s === "SETUJU" ? "Setuju" : s === "BELUM" ? "Belum" : "Tidak setuju",
+      "badge " + (s === "SETUJU" ? "open" : s === "BELUM" ? "off" : "closed")));
+    if (s === "SETUJU" && /^https:\/\//.test(t.resitTambahan)) {
+      td.appendChild(document.createTextNode(" "));
+      var a = el("a", "Resit RM " + rm(t.tambahan));
+      a.href = t.resitTambahan;
+      a.target = "_blank";
+      a.rel = "noopener";
+      td.appendChild(a);
+    }
+    return td;
+  }
+
+  // ---------- Blast WhatsApp ----------
+  var TEMPLAT_BLAST = {
+    kenaikan:
+      "Salam sejahtera {nama},\n\n" +
+      "Dimaklumkan harga lencana *{lencana}* telah dinaikkan daripada *RM{hargaLama} kepada RM{hargaBaru} seunit*.\n\n" +
+      "Tempahan {sekolah}:\n{senarai}\n\n" +
+      "Baki tambahan: *RM{tambahan}*\n\n" +
+      "Sila beri maklum balas *SETUJU / TIDAK SETUJU* dan muat naik resit baki *terus di sistem tempahan* (tidak perlu hantar resit melalui WhatsApp):\n" +
+      "{pautan}\n\n" +
+      "No. rujukan sudah diisi. Masukkan no. telefon *{telefon}* untuk semakan.\n\n" +
+      "Bayaran baki ke {bank} (Ref 1: TAMBAHAN, Ref 2: nama sekolah).\n" +
+      "Tarikh akhir: *[TARIKH AKHIR]*.\n" +
+      "Bagi yang tidak setuju, tempahan akan dibatalkan dan bayaran asal dipulangkan.\n\n" +
+      "Terima kasih.",
+    umum:
+      "Salam sejahtera {nama},\n\n" +
+      "Makluman berkenaan tempahan lencana *{lencana}* bagi {sekolah}:\n{senarai}\n\n" +
+      "[ISI MAKLUMAN DI SINI]\n\n" +
+      "Semakan tempahan: {pautan}\n\n" +
+      "Terima kasih.",
+  };
+
+  function simpanLocal(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* abaikan */ } }
+  function bacaLocal(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function kunciBlast() { return "blast|" + $("bLencana").value + "|" + $("bJenis").value; }
+  function tandaBlast() {
+    try { return JSON.parse(bacaLocal(kunciBlast() + "|tanda") || "{}"); } catch (e) { return {}; }
+  }
+
+  function isiBlastLencana() {
+    var s = $("bLencana"), pilih = s.value;
+    s.innerHTML = "";
+    data.lencana.forEach(function (l) {
+      var n = data.tempahan.filter(function (t) { return t.lencanaId === l.id; }).length;
+      if (n) s.appendChild(new Option(l.id + " — " + l.nama + " (" + n + " tempahan)", l.id));
+    });
+    if (!s.options.length) s.appendChild(new Option("Tiada tempahan", ""));
+    s.value = pilih;
+    if (s.selectedIndex < 0) s.selectedIndex = 0;
+    muatTemplat();
+  }
+
+  function muatTemplat() {
+    $("bTpl").value = bacaLocal(kunciBlast() + "|tpl") || TEMPLAT_BLAST[$("bJenis").value];
+    paparBlast();
+  }
+
+  // Perlu bayar baki kenaikan harga dan belum SETUJU.
+  function tungguTambahan(t) { return !!statusTambahan(t) && t.statusTambahan !== "SETUJU"; }
+
+  // Tempahan lencana ini dikumpul mengikut no. telefon: seorang pemimpin, satu mesej.
+  function pemimpinBlast() {
+    var l = data.lencana.filter(function (x) { return x.id === $("bLencana").value; })[0];
+    if (!l) return [];
+    var ikut = {}, list = [];
+    data.tempahan.forEach(function (t) {
+      if (t.lencanaId !== l.id) return;
+      var tel = t.telefon.replace(/\D/g, "");
+      var p = ikut[tel];
+      if (!p) { p = ikut[tel] = { tel: tel, nama: t.pemimpin, sekolah: [], tempahan: [], status: {} }; list.push(p); }
+      if (p.sekolah.indexOf(t.sekolah) < 0) p.sekolah.push(t.sekolah);
+      p.tempahan.push(t);
+      var s = statusTambahan(t);
+      if (s) p.status[s] = true;
+    });
+    list.forEach(function (p) {
+      p.lencana = l;
+      p.bil = 0; p.jumlah = 0; p.tambahan = 0;
+      p.hargaLama = p.tempahan[0].harga;
+      p.tempahan.forEach(function (t) {
+        p.bil += t.bilangan;
+        p.jumlah += t.jumlah;
+        if (tungguTambahan(t)) p.tambahan += (l.harga - t.harga) * t.bilangan;
+      });
+      var tunggu = p.tempahan.filter(tungguTambahan)[0];
+      p.pautan = (data.formUrl || "") + (tunggu ? "?baki=" + tunggu.rujukan : "?lencana=" + l.id);
+    });
+    var sasaran = $("bSasaran").value;
+    return list.filter(function (p) {
+      if (sasaran === "belum") return p.status.BELUM;
+      if (sasaran === "tidak") return p.status["TIDAK SETUJU"] && !p.status.BELUM;
+      return true;
+    });
+  }
+
+  function mesejBlast(p, tpl) {
+    var bank = data.bank ? data.bank.bank + " " + data.bank.noAkaun + " (" + data.bank.nama + ")" : "";
+    var ganti = {
+      nama: p.nama, sekolah: p.sekolah.join(" / "), lencana: p.lencana.nama, telefon: p.tel,
+      senarai: p.tempahan.map(function (t) { return "- " + t.rujukan + ": " + t.bilangan + " unit"; }).join("\n"),
+      bilangan: p.bil, jumlah: rm(p.jumlah), hargaLama: rm(p.hargaLama), hargaBaru: rm(p.lencana.harga),
+      tambahan: rm(p.tambahan), pautan: p.pautan, bank: bank,
+    };
+    return tpl.replace(/\{(\w+)\}/g, function (m, k) { return k in ganti ? ganti[k] : m; });
+  }
+
+  function paparBlast() {
+    var tpl = $("bTpl").value;
+    var kosong = tpl.match(/\[[^\]]+\]/g);
+    var amaran = kosong ? "Belum diisi: " + kosong.join(", ") + ". Butang Hantar dikunci sehingga semua [ ] diganti." : "";
+    if (!data.formUrl && /\{pautan\}/.test(tpl)) {
+      amaran += " Pautan borang tidak diketahui: buka paparan admin melalui pautan web app (…/exec?admin), bukan dari menu Google Sheet.";
+    }
+    $("bAmaran").textContent = amaran;
+    var tanda = tandaBlast();
+    var list = pemimpinBlast();
+    var tb = $("bSenarai");
+    tb.innerHTML = "";
+    var n = 0;
+    list.forEach(function (p, i) {
+      var sudah = !!tanda[p.tel];
+      if (sudah) n++;
+      var tr = el("tr");
+      if (sudah) tr.style.opacity = ".5";
+      tr.appendChild(el("td", i + 1, "num"));
+      var tdN = el("td", null, "wrap");
+      tdN.appendChild(el("strong", p.nama));
+      tdN.appendChild(el("div", p.tel, "sub"));
+      tr.appendChild(tdN);
+      tr.appendChild(el("td", p.sekolah.join(" / "), "wrap"));
+      tr.appendChild(el("td", p.bil, "num big"));
+      var tdS = el("td");
+      ["SETUJU", "TIDAK SETUJU", "BELUM"].forEach(function (s) {
+        if (!p.status[s]) return;
+        tdS.appendChild(el("span", s === "SETUJU" ? "Setuju" : s === "BELUM" ? "Belum" : "Tidak setuju",
+          "badge " + (s === "SETUJU" ? "open" : s === "BELUM" ? "off" : "closed")));
+        tdS.appendChild(document.createTextNode(" "));
+      });
+      tr.appendChild(tdS);
+      var teks = mesejBlast(p, tpl);
+      var tdM = el("td", null, "wrap");
+      var det = el("details");
+      det.appendChild(el("summary", "Lihat mesej"));
+      var pre = el("pre", teks);
+      pre.style.cssText = "white-space:pre-wrap;font-size:.8rem;margin:6px 0 0;max-width:420px";
+      det.appendChild(pre);
+      tdM.appendChild(det);
+      tr.appendChild(tdM);
+      var tdB = el("td");
+      var a = el("a", sudah ? "Hantar semula" : "Hantar");
+      a.className = "wa-btn" + (kosong ? " off" : "");
+      a.href = "https://wa.me/6" + p.tel + "?text=" + encodeURIComponent(teks);
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.addEventListener("click", function (e) {
+        if (kosong) { e.preventDefault(); return; }
+        var t = tandaBlast();
+        t[p.tel] = true;
+        simpanLocal(kunciBlast() + "|tanda", JSON.stringify(t));
+        setTimeout(paparBlast, 300);
+      });
+      tdB.appendChild(a);
+      tr.appendChild(tdB);
+      tb.appendChild(tr);
+    });
+    if (!list.length) {
+      var trE = el("tr"), tdE = el("td", "Tiada pemimpin untuk sasaran ini.", "empty");
+      tdE.colSpan = 7; trE.appendChild(tdE); tb.appendChild(trE);
+    }
+    $("bProg").textContent = n + " / " + list.length + " pemimpin sudah dihantar";
+  }
+
+  $("bLencana").addEventListener("change", muatTemplat);
+  $("bJenis").addEventListener("change", function () {
+    $("bSasaran").value = $("bJenis").value === "umum" ? "semua" : "belum";
+    muatTemplat();
+  });
+  $("bSasaran").addEventListener("change", paparBlast);
+  $("bTpl").addEventListener("input", function () { simpanLocal(kunciBlast() + "|tpl", $("bTpl").value); paparBlast(); });
+  $("bAsal").addEventListener("click", function () {
+    $("bTpl").value = TEMPLAT_BLAST[$("bJenis").value];
+    simpanLocal(kunciBlast() + "|tpl", $("bTpl").value);
+    paparBlast();
+  });
+  $("bReset").addEventListener("click", function () {
+    simpanLocal(kunciBlast() + "|tanda", "{}");
+    paparBlast();
+  });
+
   function kunciSekolah(s) {
     return String(s || "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
   }

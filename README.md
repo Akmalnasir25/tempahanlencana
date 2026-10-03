@@ -27,6 +27,25 @@ Sekolah yang sama boleh membuat tempahan tambahan. Halaman kejayaan akan menunju
 - Untuk memuat turun semula kemudian, gunakan kotak **Sudah buat tempahan?** di bawah borang. Masukkan no. rujukan dan no. telefon pemimpin. Kedua-duanya mesti sepadan, jadi sekolah lain tidak boleh melihat tempahan anda.
 - Resit mengandungi no. rujukan, tarikh, butiran lencana, sekolah, pemimpin, bilangan, jumlah bayaran, maklumat akaun (Ref 1/Ref 2), dan jumlah keseluruhan sekolah jika ada tempahan tambahan.
 
+### Kenaikan harga (bayaran tambahan)
+
+Jika harga lencana dinaikkan dalam **Senarai Lencana** selepas ada tempahan, borang akan memaparkan kotak **Kenaikan harga lencana**.
+
+- Pemimpin masukkan no. rujukan dan no. telefon. Sistem paparkan semua tempahannya (no. telefon yang sama, lencana yang sama) yang dibayar pada harga lama, berserta baki: (harga baru − harga lama) × bilangan.
+- Pemimpin pilih **Setuju** (wajib muat naik resit baki, Ref 1 `TAMBAHAN`) atau **Tidak setuju** (tempahan dibatalkan, bayaran asal dipulangkan). Pilihan Tidak setuju boleh ditukar kepada Setuju kemudian. Pilihan Setuju adalah muktamad.
+- Jawapan disimpan dalam lajur L–O tab Tempahan (*Status Tambahan, Tambahan (RM), Resit Tambahan, Tarikh Maklum Balas*). Paparan admin menunjukkan status setiap tempahan dan pautan resit baki.
+- Pautan terus ke kotak ini: `<URL borang>?baki`.
+
+### Blast WhatsApp (paparan admin)
+
+Tab **Blast WhatsApp** dalam paparan admin menjana mesej WhatsApp untuk setiap pemimpin bagi lencana yang dipilih. Tempahan dengan no. telefon yang sama digabungkan, jadi setiap pemimpin hanya menerima satu mesej.
+
+- **Jenis mesej**: *Kenaikan harga* (baki tambahan, pautan `?baki=NO.RUJUKAN` yang sudah diisi) atau *Makluman umum*.
+- **Sasaran**: semua pemimpin, pemimpin yang belum memberi maklum balas kenaikan harga, atau pemimpin yang tidak setuju.
+- Templat boleh diedit. Ruang `{nama}`, `{tambahan}`, `{pautan}` dan lain-lain diisi secara automatik. Butang **Hantar** dikunci selagi masih ada `[ ]` dalam templat.
+- Tekan **Hantar** untuk membuka WhatsApp (`wa.me`) dengan mesej siap ditaip, kemudian tekan Send. Mesej dihantar daripada nombor WhatsApp admin. Tanda "sudah dihantar" disimpan dalam pelayar admin sahaja.
+- Buka paparan admin melalui `<URL borang>?admin` supaya `{pautan}` dapat diisi. Jika dibuka melalui menu Google Sheet, pautan borang tidak tersedia.
+
 ## Struktur fail
 
 | Fail | Kegunaan |
@@ -56,6 +75,14 @@ Sekolah yang sama boleh membuat tempahan tambahan. Halaman kejayaan akan menunju
    - Execute as: **Me**
    - Who has access: **Anyone**
 10. Tekan **Deploy**, kemudian salin **Web app URL** (berakhir dengan `/exec`). Inilah pautan borang untuk dikongsi kepada guru.
+
+### Domain sendiri (lencana.akmalsys.com)
+
+Apps Script tidak boleh dipasang terus pada domain sendiri. Fail `domain/index.html` ialah halaman pembalut yang memaparkan web app dalam iframe. Parameter URL seperti `?admin`, `?baki=...` dan `?lencana=...` dihantar terus ke web app. Pautan yang dijana oleh sistem (blast WhatsApp, butang Admin) menggunakan `URL_AWAM` dalam `Code.gs`.
+
+1. Cloudflare dashboard → **Workers & Pages → Create → Pages → Upload assets**. Namakan projek `lencana`, muat naik folder `domain/`, kemudian tekan **Deploy**.
+2. Dalam projek itu → **Custom domains → Set up a custom domain** → `lencana.akmalsys.com` → **Activate domain**. DNS akan ditambah secara automatik kerana akmalsys.com sudah menggunakan Cloudflare.
+3. Jika URL web app berubah (deployment baru, bukan *New version*), kemas kini `WEB_APP` dalam `domain/index.html` dan muat naik semula.
 
 > Jika anda mengubah `Code.gs`, `Index.html` atau `Admin.html` selepas deploy, buat **Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy**. Pautan kekal sama.
 > Menambah atau mengubah baris dalam Sheet tidak memerlukan deploy semula.

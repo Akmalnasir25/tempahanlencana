@@ -22,6 +22,9 @@ var SHEET_LENCANA = 'Senarai Lencana';
 var SHEET_TEMPAHAN = 'Tempahan';
 var FOLDER_NAME = 'Resit Tempahan Lencana';
 var SAIZ_RESIT_MAKS_MB = 5;
+// Alamat awam borang (halaman pembalut di domain sendiri, lihat folder domain/).
+// Biarkan '' untuk guna pautan script.google.com.
+var URL_AWAM = 'https://lencana.akmalsys.com';
 // Emel untuk notifikasi setiap tempahan baru. Biarkan '' untuk tidak menghantar emel.
 var EMEL_ADMIN = '';
 // =====================
@@ -30,7 +33,12 @@ var HEADERS_LENCANA = ['ID', 'Nama Lencana', 'Keterangan', 'Harga (RM)', 'Tarikh
 var HEADERS_TEMPAHAN = [
   'No. Rujukan', 'Tarikh & Masa', 'ID Lencana', 'Nama Lencana', 'Nama Sekolah',
   'Nama Pemimpin', 'No. Telefon', 'Bilangan', 'Harga Seunit (RM)', 'Jumlah (RM)', 'Pautan Resit',
+  // Diisi apabila harga lencana naik selepas tempahan dibuat (lihat semakTambahan / hantarTambahan).
+  'Status Tambahan', 'Tambahan (RM)', 'Resit Tambahan', 'Tarikh Maklum Balas',
 ];
+var COL_TAMBAHAN = 12; // lajur L
+var STATUS_SETUJU = 'SETUJU';
+var STATUS_TIDAK = 'TIDAK SETUJU';
 
 // Lencana pertama yang dimasukkan semasa setup(). Isi lajur Gambar dengan pautan Drive kemudian.
 var CONTOH_LENCANA = [
@@ -43,16 +51,24 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.admin !== undefined) {
     var t = HtmlService.createTemplateFromFile('Admin');
     t.mode = 'tempahan';
-    t.url = ScriptApp.getService().getUrl();
+    t.url = urlBorang_();
     return t.evaluate()
       .setTitle('Admin Tempahan Lencana')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
   var borang = HtmlService.createTemplateFromFile('Index');
-  borang.url = ScriptApp.getService().getUrl();
+  borang.url = urlBorang_();
   return borang.evaluate()
     .setTitle('Tempahan Lencana Pengakap')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    // Benarkan borang dipaparkan dalam halaman pembalut di domain sendiri (URL_AWAM).
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/** Pautan borang yang dikongsi kepada pemimpin. */
+function urlBorang_() {
+  return URL_AWAM || ScriptApp.getService().getUrl();
 }
 
 /** Dipanggil oleh borang: maklumat bank dan senarai lencana aktif. */
@@ -66,7 +82,10 @@ function getData() {
         dibuka: now <= l.tarikhAkhir,
       };
     });
-    return { ok: true, bank: BANK, saizResitMaksMB: SAIZ_RESIT_MAKS_MB, lencana: list };
+    return {
+      ok: true, bank: BANK, saizResitMaksMB: SAIZ_RESIT_MAKS_MB, lencana: list,
+      adaTambahan: adaTambahan_(),
+    };
   } catch (err) {
     console.error(err);
     return { ok: false, error: 'Gagal memuatkan senarai lencana.' };
@@ -97,13 +116,8 @@ function hantarTempahan(d) {
 
     var r = d.resit || {};
     var jenis = String(r.jenis || '');
-    if (!r.data || !/^image\/|^application\/pdf$/.test(jenis)) {
-      return { ok: false, error: 'Resit mesti gambar atau PDF.' };
-    }
-    var bytes = Utilities.base64Decode(r.data);
-    if (bytes.length > SAIZ_RESIT_MAKS_MB * 1024 * 1024) {
-      return { ok: false, error: 'Saiz resit melebihi ' + SAIZ_RESIT_MAKS_MB + ' MB.' };
-    }
+    var bytes = bacaResit_(r);
+    if (typeof bytes === 'string') return { ok: false, error: bytes };
 
     var jumlah = Math.round(bilangan * lencana.harga * 100) / 100;
     var id, fail, jumlahSekolah;
@@ -147,6 +161,149 @@ function hantarTempahan(d) {
   }
 }
 
+/** Bait fail resit yang dimuat naik, atau mesej ralat (string) jika tidak sah. */
+function bacaResit_(r) {
+  if (!r.data || !/^image\/|^application\/pdf$/.test(String(r.jenis || ''))) return 'Resit mesti gambar atau PDF.';
+  var bytes = Utilities.base64Decode(r.data);
+  if (bytes.length > SAIZ_RESIT_MAKS_MB * 1024 * 1024) return 'Saiz resit melebihi ' + SAIZ_RESIT_MAKS_MB + ' MB.';
+  return bytes;
+}
+
+// =====================================================================
+// Kenaikan harga: bayaran tambahan bagi tempahan yang dibuat pada harga lama
+// =====================================================================
+
+/** Ada tempahan yang harga seunitnya lebih rendah daripada harga semasa lencana? */
+function adaTambahan_() {
+  var harga = {};
+  semuaLencana_().forEach(function (l) { harga[l.id] = l.harga; });
+  var sheet = getTempahanSheet_();
+  if (sheet.getLastRow() < 2) return false;
+  return sheet.getRange(2, 3, sheet.getLastRow() - 1, 7).getValues().some(function (r) {
+    // r: [ID Lencana, Nama Lencana, Sekolah, Pemimpin, Telefon, Bilangan, Harga]
+    return harga[String(r[0]).trim()] > (Number(r[6]) || 0);
+  });
+}
+
+/**
+ * Semua tempahan pemimpin ini (no. telefon sama, lencana sama) yang dibayar pada
+ * harga lama. No. rujukan DAN no. telefon mesti sepadan. Pulangkan null jika tidak dijumpai.
+ */
+function cariTambahan_(rujukan, telefon) {
+  rujukan = String(rujukan || '').trim().toUpperCase();
+  var tel = normalTelefon_(telefon);
+  var sheet = getTempahanSheet_();
+  if (!rujukan || !tel || sheet.getLastRow() < 2) return null;
+  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, HEADERS_TEMPAHAN.length).getValues();
+  var asal = rows.filter(function (r) { return String(r[0]).trim().toUpperCase() === rujukan; })[0];
+  if (!asal || normalTelefon_(asal[6]) !== tel) return null;
+
+  var lencanaId = String(asal[2]).trim();
+  var l = semuaLencana_().filter(function (x) { return x.id === lencanaId; })[0];
+  var hasil = {
+    lencana: { id: lencanaId, nama: String(asal[3]).trim() },
+    sekolah: String(asal[4]).trim(), hargaBaru: l ? l.harga : 0, senarai: [],
+  };
+  rows.forEach(function (r, i) {
+    if (String(r[2]).trim() !== lencanaId || normalTelefon_(r[6]) !== tel) return;
+    var bilangan = Number(r[7]) || 0, harga = Number(r[8]) || 0;
+    var beza = Math.round((hasil.hargaBaru - harga) * 100) / 100;
+    if (!(beza > 0)) return;
+    hasil.senarai.push({
+      baris: i + 2, rujukan: String(r[0]).trim(), sekolah: String(r[4]).trim(),
+      bilangan: bilangan, harga: harga, tambahan: Math.round(bilangan * beza * 100) / 100,
+      status: String(r[COL_TAMBAHAN - 1]).trim(),
+    });
+  });
+  return hasil;
+}
+
+/** Dipanggil oleh borang: papar bayaran tambahan bagi tempahan pemimpin ini. */
+function semakTambahan(rujukan, telefon) {
+  try {
+    var h = cariTambahan_(rujukan, telefon);
+    if (!h) {
+      Utilities.sleep(1500); // perlahankan cubaan meneka
+      return { ok: false, error: 'Tempahan tidak dijumpai. Sila semak no. rujukan dan no. telefon.' };
+    }
+    if (!h.senarai.length) return { ok: false, error: 'Tiada bayaran tambahan diperlukan bagi tempahan ini.' };
+    return {
+      ok: true, lencanaId: h.lencana.id, lencana: h.lencana.nama, sekolah: h.sekolah, hargaBaru: h.hargaBaru,
+      senarai: h.senarai.map(function (t) {
+        return { rujukan: t.rujukan, bilangan: t.bilangan, harga: t.harga, tambahan: t.tambahan, status: t.status };
+      }),
+    };
+  } catch (err) {
+    console.error(err);
+    return { ok: false, error: 'Ralat pelayan. Sila cuba lagi sebentar.' };
+  }
+}
+
+/**
+ * Dipanggil oleh borang: pemimpin setuju (dengan resit baki) atau tidak setuju.
+ * Dikenakan kepada semua tempahannya yang belum SETUJU. Jawapan SETUJU tidak boleh ditukar.
+ */
+function hantarTambahan(d) {
+  try {
+    d = d || {};
+    var setuju = d.setuju === true;
+    var bytes = null;
+    if (setuju) {
+      bytes = bacaResit_(d.resit || {});
+      if (typeof bytes === 'string') return { ok: false, error: bytes };
+    }
+
+    var lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      var h = cariTambahan_(d.rujukan, d.telefon);
+      if (!h) return { ok: false, error: 'Tempahan tidak dijumpai. Sila semak no. rujukan dan no. telefon.' };
+      var baki = h.senarai.filter(function (t) { return t.status !== STATUS_SETUJU; });
+      if (!baki.length) return { ok: false, error: 'Maklum balas anda telah pun diterima. Terima kasih.' };
+
+      var jumlah = 0;
+      baki.forEach(function (t) { jumlah += t.tambahan; });
+      jumlah = Math.round(jumlah * 100) / 100;
+
+      var url = '';
+      if (setuju) {
+        var r = d.resit;
+        var ext = (String(r.nama || '').match(/\.[A-Za-z0-9]{1,5}$/) || [''])[0];
+        var namaFail = 'TAMBAHAN ' + baki.map(function (t) { return t.rujukan; }).join(', ') +
+          ' - ' + h.sekolah.replace(/[\\\/:*?"<>|]/g, '') + ext;
+        url = getFolder_(h.lencana).createFile(Utilities.newBlob(bytes, String(r.jenis), namaFail)).getUrl();
+      }
+
+      var sheet = getTempahanSheet_();
+      pastikanHeaderTempahan_(sheet);
+      var masa = new Date();
+      baki.forEach(function (t) {
+        sheet.getRange(t.baris, COL_TAMBAHAN, 1, 4)
+          .setValues([[setuju ? STATUS_SETUJU : STATUS_TIDAK, t.tambahan, url, masa]]);
+      });
+      SpreadsheetApp.flush();
+    } finally {
+      lock.releaseLock();
+    }
+
+    return { ok: true, setuju: setuju, jumlah: jumlah, rujukan: baki.map(function (t) { return t.rujukan; }) };
+  } catch (err) {
+    console.error(err);
+    return { ok: false, error: 'Ralat pelayan. Sila cuba lagi sebentar.' };
+  }
+}
+
+/** Tab Tempahan yang dicipta sebelum lajur tambahan wujud: isi tajuk lajur baru. */
+function pastikanHeaderTempahan_(sheet) {
+  var n = HEADERS_TEMPAHAN.length;
+  var h = sheet.getRange(1, 1, 1, n).getValues()[0];
+  if (String(h[n - 1]).trim()) return;
+  sheet.getRange(1, 1, 1, n).setValues([HEADERS_TEMPAHAN]);
+  styleHeader_(sheet, n);
+  sheet.getRange(2, COL_TAMBAHAN + 1, sheet.getMaxRows() - 1, 1).setNumberFormat('0.00');
+  sheet.getRange(2, COL_TAMBAHAN + 3, sheet.getMaxRows() - 1, 1).setNumberFormat('d/m/yyyy h:mm am/pm');
+}
+
 /**
  * Dipanggil oleh borang: jana slip tempahan (PDF) untuk satu tempahan.
  * No. rujukan DAN no. telefon mesti sepadan supaya orang lain tidak boleh
@@ -174,6 +331,7 @@ function slipTempahan(rujukan, telefon) {
       sekolah: String(row[4]).trim(), pemimpin: String(row[5]).trim(),
       telefon: '0' + normalTelefon_(row[6]),
       bilangan: Number(row[7]) || 0, harga: Number(row[8]) || 0, jumlah: Number(row[9]) || 0,
+      statusTambahan: String(row[11]).trim(), tambahan: Number(row[12]) || 0,
     };
     var sekolah = kiraSekolah_(t.lencanaId, t.sekolah);
 
@@ -248,6 +406,10 @@ function slipHtml_(t, sekolah) {
     baris('Bilangan lencana', t.bilangan) + baris('Harga seunit', rm(t.harga)) +
     '<tr class="total"><td class="k">Jumlah bayaran</td><td class="v">' + esc_(rm(t.jumlah)) + '</td></tr>' +
     baris('Status', 'Resit bayaran telah dimuat naik') +
+    (t.statusTambahan === STATUS_SETUJU
+      ? baris('Bayaran tambahan (kenaikan harga)', rm(t.tambahan) + ', resit telah dimuat naik') : '') +
+    (t.statusTambahan === STATUS_TIDAK
+      ? baris('Kenaikan harga', 'Tidak setuju: tempahan dibatalkan', 'color:#c62828') : '') +
     '</table>' + tambahan +
     '<h3>Akaun bayaran</h3><table>' +
     baris('Nama akaun', BANK.nama) + baris('No. akaun', BANK.noAkaun) + baris('Bank', BANK.bank) +
@@ -443,10 +605,15 @@ function adminTempahan(token) {
         return {
           rujukan: String(r[0]), masa: r[1] instanceof Date ? r[1].toISOString() : String(r[1]),
           lencanaId: String(r[2]), lencana: String(r[3]), sekolah: String(r[4]), pemimpin: String(r[5]),
-          telefon: String(r[6]), bilangan: Number(r[7]) || 0, jumlah: Number(r[9]) || 0, resit: String(r[10]),
+          telefon: String(r[6]), bilangan: Number(r[7]) || 0, harga: Number(r[8]) || 0,
+          jumlah: Number(r[9]) || 0, resit: String(r[10]),
+          statusTambahan: String(r[11]).trim(), tambahan: Number(r[12]) || 0, resitTambahan: String(r[13]),
         };
       });
-  return { lencana: lencana, tempahan: tempahan, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() };
+  return {
+    lencana: lencana, tempahan: tempahan, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
+    formUrl: urlBorang_(), bank: BANK,
+  };
 }
 
 /** Semak dan bersihkan input borang lencana (tambah / sunting). */

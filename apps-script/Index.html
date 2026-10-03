@@ -332,6 +332,12 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
 }
 .total small { color: var(--muted); font-weight: 400; }
 .total strong { white-space: nowrap; }
+.tambahan { border-top: 4px solid var(--gold); }
+.tb-soalan { font-weight: 700; margin: 18px 0 0; }
+.pilihan { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 10px; cursor: pointer; }
+.pilihan:has(input:checked) { border-color: var(--navy); background: #f3f5fb; }
+#tbSenarai .tidak dd { color: var(--danger); }
+#tbSenarai .setuju dd { color: var(--ok); }
 #chooser .section-title {
   background: var(--card);
   border-radius: var(--radius);
@@ -496,6 +502,61 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
       <button type="button" class="submit secondary" id="againBtn">Buat tempahan lain</button>
     </section>
 
+    <section class="card semak tambahan hidden" id="tambahan">
+      <h2>Kenaikan harga lencana</h2>
+      <p class="hint">Harga lencana telah dinaikkan. Jika tempahan anda dibuat pada harga lama, semak baki bayaran, beri maklum balas dan muat naik resit baki di sini.</p>
+      <form id="tbSemakForm" novalidate>
+        <div class="field">
+          <label for="tbRujukan">No. rujukan</label>
+          <input id="tbRujukan" type="text" autocomplete="off" autocapitalize="off" placeholder="cth: LencanaAKPNPKK26-0001">
+        </div>
+        <div class="field">
+          <label for="tbTelefon">No. telefon pemimpin</label>
+          <input id="tbTelefon" type="tel" inputmode="tel" autocomplete="tel" placeholder="No. telefon yang digunakan semasa tempahan">
+        </div>
+        <button type="submit" class="submit secondary" id="tbSemakBtn">Semak bayaran tambahan</button>
+        <p class="form-msg" id="tbSemakMsg" role="alert"></p>
+      </form>
+
+      <div class="hidden" id="tbHasil">
+        <dl class="summary" id="tbSenarai"></dl>
+
+        <form class="hidden" id="tbForm" novalidate>
+          <p class="tb-soalan">Adakah anda bersetuju dengan bayaran tambahan ini?</p>
+          <label class="check pilihan">
+            <input type="radio" name="tbPilih" value="ya">
+            <span><strong>Setuju</strong>: saya akan bayar baki <strong class="tbJumlah"></strong> dan muat naik resit.</span>
+          </label>
+          <label class="check pilihan">
+            <input type="radio" name="tbPilih" value="tidak">
+            <span><strong>Tidak setuju</strong>: tempahan dibatalkan dan bayaran asal dipulangkan.</span>
+          </label>
+
+          <div class="hidden" id="tbBayar">
+            <p class="hint">Sila pindahkan <strong class="tbJumlah"></strong> ke akaun di bawah, kemudian muat naik resit.</p>
+            <div class="bank">
+              <div class="bank-row"><span class="k">Nama akaun</span><span class="v" id="tbBankNama"></span></div>
+              <div class="bank-row"><span class="k">No. akaun</span><span class="v" id="tbBankNo"></span></div>
+              <div class="bank-row"><span class="k">Bank</span><span class="v" id="tbBankBank"></span></div>
+              <div class="bank-row"><span class="k">Ref 1</span><span class="v">TAMBAHAN</span></div>
+              <div class="bank-row"><span class="k">Ref 2</span><span class="v" id="tbRef2"></span></div>
+            </div>
+            <div class="field">
+              <label for="tbResit" class="drop" id="tbDrop">
+                <span class="drop-title" id="tbDropTitle">Pilih fail resit baki</span>
+                <span class="drop-sub" id="tbDropSub"></span>
+              </label>
+              <input id="tbResit" type="file" accept="image/*,application/pdf" class="visually-hidden">
+            </div>
+          </div>
+
+          <button type="submit" class="submit" id="tbHantarBtn">Hantar maklum balas</button>
+          <p class="form-msg" id="tbMsg" role="alert"></p>
+        </form>
+        <p class="form-msg ok" id="tbSelesai"></p>
+      </div>
+    </section>
+
     <section class="card semak hidden" id="semak">
       <h2>Sudah buat tempahan?</h2>
       <p class="hint">Muat turun semula resit tempahan anda.</p>
@@ -568,6 +629,10 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
     updateRef2();
     dropSubDefault = "Gambar (JPG/PNG) atau PDF, maksimum " + cfg.SAIZ_RESIT_MAKS_MB + " MB";
     $("dropSub").textContent = dropSubDefault;
+    $("tbBankNama").textContent = cfg.BANK.nama;
+    $("tbBankNo").textContent = cfg.BANK.noAkaun;
+    $("tbBankBank").textContent = cfg.BANK.bank;
+    $("tbDropSub").textContent = dropSubDefault;
   }
 
   // Ref 2 = nama sekolah yang ditaip (huruf besar).
@@ -622,7 +687,15 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
         senarai = data.lencana || [];
         show("loading", false);
         show("semak", true);
-        google.script.url.getLocation(function (loc) { route(loc.parameter.lencana); });
+        show("tambahan", !!data.adaTambahan);
+        google.script.url.getLocation(function (loc) {
+          route(loc.parameter.lencana);
+          // Pautan ?baki (atau ?baki=NO.RUJUKAN) terus ke bahagian kenaikan harga.
+          if (data.adaTambahan && loc.parameter.baki !== undefined) {
+            $("tbRujukan").value = loc.parameter.baki || "";
+            setTimeout(function () { $("tambahan").scrollIntoView({ behavior: "smooth" }); }, 300);
+          }
+        });
       })
       .withFailureHandler(function () { loadFailed(); })
       .getData();
@@ -957,6 +1030,147 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
       });
       dl.classList.remove("hidden");
     });
+  });
+
+  // ---------- Kenaikan harga: bayaran tambahan ----------
+  var tb = null; // { rujukan, telefon, hasil semakTambahan }
+
+  function isiSummary(dl, rows) {
+    dl.innerHTML = "";
+    rows.forEach(function (r) {
+      var div = document.createElement("div");
+      if (r[2]) div.className = r[2];
+      var dt = document.createElement("dt");
+      var dd = document.createElement("dd");
+      dt.textContent = r[0];
+      dd.textContent = r[1];
+      div.appendChild(dt);
+      div.appendChild(dd);
+      dl.appendChild(div);
+    });
+  }
+
+  function paparTambahan(r) {
+    var baki = r.senarai.filter(function (t) { return t.status !== "SETUJU"; });
+    var jumlah = 0;
+    baki.forEach(function (t) { jumlah += t.tambahan; });
+
+    var rows = [["Sekolah", r.sekolah], ["Lencana", r.lencana]];
+    r.senarai.forEach(function (t) {
+      var teks = t.bilangan + " × " + rm(t.tambahan / t.bilangan) + " = " + rm(t.tambahan);
+      var kelas = "";
+      if (t.status === "SETUJU") { teks += " · Setuju, resit diterima"; kelas = "setuju"; }
+      else if (t.status === "TIDAK SETUJU") { teks += " · Tidak setuju"; kelas = "tidak"; }
+      rows.push([t.rujukan, teks, kelas]);
+    });
+    if (baki.length) rows.push(["Baki perlu dibayar", rm(jumlah), "total-row"]);
+    isiSummary($("tbSenarai"), rows);
+
+    document.querySelectorAll(".tbJumlah").forEach(function (el) { el.textContent = rm(jumlah); });
+    $("tbRef2").textContent = r.sekolah.toUpperCase();
+    $("tbSelesai").textContent = baki.length ? "" :
+      "✓ Maklum balas SETUJU dan resit baki telah diterima. Tempahan anda akan diteruskan. Terima kasih.";
+    show("tbForm", baki.length > 0);
+    show("tbHasil", true);
+  }
+
+  $("tbSemakForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var rujukan = $("tbRujukan").value.trim();
+    var telefon = $("tbTelefon").value.trim();
+    var msg = $("tbSemakMsg");
+    show("tbHasil", false);
+    if (!rujukan || !telefon) { msg.textContent = "Sila masukkan no. rujukan dan no. telefon."; return; }
+    var btn = $("tbSemakBtn");
+    btn.disabled = true;
+    msg.textContent = "";
+    var selesai = function () { btn.disabled = false; };
+    google.script.run
+      .withSuccessHandler(function (r) {
+        selesai();
+        if (!r || !r.ok) { msg.textContent = (r && r.error) || "Gagal menyemak tempahan."; return; }
+        tb = { rujukan: rujukan, telefon: telefon, hasil: r };
+        $("tbForm").reset();
+        $("tbMsg").textContent = "";
+        $("tbDropTitle").textContent = "Pilih fail resit baki";
+        $("tbDrop").classList.remove("has-file", "invalid");
+        show("tbBayar", false);
+        paparTambahan(r);
+      })
+      .withFailureHandler(function () {
+        selesai();
+        msg.textContent = "Gagal menyemak tempahan. Sila semak sambungan internet dan cuba lagi.";
+      })
+      .semakTambahan(rujukan, telefon);
+  });
+
+  function pilihanTb() {
+    var p = document.querySelector('input[name="tbPilih"]:checked');
+    return p ? p.value : "";
+  }
+
+  document.querySelectorAll('input[name="tbPilih"]').forEach(function (el) {
+    el.addEventListener("change", function () { show("tbBayar", pilihanTb() === "ya"); });
+  });
+
+  $("tbResit").addEventListener("change", function () {
+    var f = this.files[0];
+    if (!f) return;
+    $("tbDropTitle").textContent = f.name;
+    $("tbDropSub").textContent = (f.size / 1024 / 1024).toFixed(2) + " MB · tekan untuk tukar fail";
+    $("tbDrop").classList.add("has-file");
+    $("tbDrop").classList.remove("invalid");
+  });
+
+  $("tbForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var msg = $("tbMsg");
+    msg.classList.remove("ok");
+    var pilih = pilihanTb();
+    if (!pilih) { msg.textContent = "Sila pilih Setuju atau Tidak setuju."; return; }
+    var file = $("tbResit").files[0];
+    if (pilih === "ya") {
+      var err = !file ? "Sila muat naik resit bayaran baki."
+        : !/^image\/|^application\/pdf$/.test(file.type) ? "Fail mesti gambar (JPG/PNG) atau PDF."
+        : file.size > cfg.SAIZ_RESIT_MAKS_MB * 1024 * 1024 ? "Saiz fail melebihi " + cfg.SAIZ_RESIT_MAKS_MB + " MB." : "";
+      if (err) { msg.textContent = err; $("tbDrop").classList.add("invalid"); return; }
+    }
+
+    var btn = $("tbHantarBtn");
+    btn.disabled = true;
+    btn.textContent = "Menghantar…";
+    msg.textContent = "";
+    var selesai = function () { btn.disabled = false; btn.textContent = "Hantar maklum balas"; };
+    var hantar = function (resit) {
+      google.script.run
+        .withSuccessHandler(function (r) {
+          selesai();
+          if (!r || !r.ok) { msg.textContent = (r && r.error) || "Gagal menghantar maklum balas."; return; }
+          // Muat semula status dari pelayan supaya paparan sama dengan Sheet.
+          tb.hasil.senarai.forEach(function (t) {
+            if (r.rujukan.indexOf(t.rujukan) >= 0) t.status = r.setuju ? "SETUJU" : "TIDAK SETUJU";
+          });
+          paparTambahan(tb.hasil);
+          if (!r.setuju) {
+            $("tbSelesai").textContent = "Maklum balas TIDAK SETUJU telah diterima. Tempahan akan dibatalkan dan bayaran asal dipulangkan. " +
+              "Jika berubah fikiran, anda masih boleh memilih Setuju di atas.";
+            $("tbForm").reset();
+            show("tbBayar", false);
+          }
+        })
+        .withFailureHandler(function () {
+          selesai();
+          msg.textContent = "Gagal menghantar. Sila semak sambungan internet dan cuba lagi.";
+        })
+        .hantarTambahan({ rujukan: tb.rujukan, telefon: tb.telefon, setuju: pilih === "ya", resit: resit });
+    };
+    if (pilih === "ya") {
+      readAsBase64(file).then(function (b64) {
+        hantar({ nama: file.name, jenis: file.type, data: b64 });
+      }, function (err2) { selesai(); msg.textContent = err2.message; });
+    } else {
+      hantar(null);
+    }
   });
 
   function showSuccess(data) {

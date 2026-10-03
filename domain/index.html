@@ -3,10 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tempahan Lencana Pengakap · Daerah Kinta Utara</title>
-  <meta name="description" content="Borang tempahan lencana Pengakap Daerah Kinta Utara">
+  <title>BadgeHub · Sistem Tempahan Lencana Pengakap</title>
+  <meta name="description" content="BadgeHub: sistem tempahan lencana Pengakap Daerah Kinta Utara">
   <meta name="theme-color" content="#0b1a5c">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚜️</text></svg>">
+  <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/img/favicon-192.png">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta property="og:title" content="BadgeHub · Sistem Tempahan Lencana Pengakap">
+  <meta property="og:description" content="Tempahan lencana Pengakap Daerah Kinta Utara">
+  <meta property="og:image" content="https://lencana.akmalsys.com/img/logo.png">
   <style>
     html, body { margin: 0; height: 100%; background: #f3f5fb; }
     iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
@@ -18,11 +24,11 @@
     Memaparkan web app Google Apps Script supaya pautan awam kekal di domain sendiri.
     Parameter URL (?admin, ?baki=..., ?lencana=...) dihantar terus ke web app.
   -->
-  <iframe id="app" title="Borang tempahan lencana" allow="clipboard-write"></iframe>
+  <iframe id="app" title="BadgeHub" allow="clipboard-write"></iframe>
   <script>
     var WEB_APP = "https://script.google.com/macros/s/AKfycbz1hhkWduAPPfvTjPo_eGDlW4739wSjqMoq8yS50Hx0laqbNrI9TmFdz205GLvxa6BNcA/exec";
     document.getElementById("app").src = WEB_APP + location.search;
-    if (location.search.indexOf("admin") >= 0) document.title = "Admin Tempahan Lencana";
+    if (location.search.indexOf("admin") >= 0) document.title = "Admin · BadgeHub";
   </script>
 </body>
 </html>

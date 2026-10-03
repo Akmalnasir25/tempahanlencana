@@ -52,18 +52,31 @@ function doGet(e) {
     var t = HtmlService.createTemplateFromFile('Admin');
     t.mode = 'tempahan';
     t.url = urlBorang_();
-    return t.evaluate()
-      .setTitle('Admin Tempahan Lencana')
+    t.aset = urlAset_();
+    return jenama_(t.evaluate()
+      .setTitle('Admin · BadgeHub')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL));
   }
   var borang = HtmlService.createTemplateFromFile('Index');
   borang.url = urlBorang_();
-  return borang.evaluate()
-    .setTitle('Tempahan Lencana Pengakap')
+  borang.aset = urlAset_();
+  return jenama_(borang.evaluate()
+    .setTitle('BadgeHub · Sistem Tempahan Lencana Pengakap')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     // Benarkan borang dipaparkan dalam halaman pembalut di domain sendiri (URL_AWAM).
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL));
+}
+
+/** Folder gambar jenama BadgeHub (dihoskan bersama halaman pembalut), atau '' jika tiada domain sendiri. */
+function urlAset_() {
+  return URL_AWAM ? URL_AWAM + '/img/' : '';
+}
+
+/** Ikon tab pelayar BadgeHub. */
+function jenama_(html) {
+  var aset = urlAset_();
+  return aset ? html.setFaviconUrl(aset + 'favicon-192.png') : html;
 }
 
 /** Pautan borang yang dikongsi kepada pemimpin. */
@@ -394,7 +407,7 @@ function slipHtml_(t, sekolah) {
     '.note{margin-top:22px;color:#5b6480;font-size:10px;border-top:1px solid #dde2f0;padding-top:8px;}' +
     '</style></head><body>' +
     '<div class="head"><p class="e">PERSEKUTUAN PENGAKAP MALAYSIA · DAERAH KINTA UTARA</p>' +
-    '<h1>RESIT TEMPAHAN LENCANA</h1></div>' +
+    '<h1>RESIT TEMPAHAN LENCANA</h1><p class="e" style="margin-top:4px">BADGEHUB · SISTEM TEMPAHAN LENCANA PENGAKAP</p></div>' +
     '<div class="wrap">' +
     '<div class="ref"><div class="k">No. rujukan</div><div class="v">' + esc_(t.rujukan) + '</div>' +
     '<div class="k">Tarikh tempahan: ' + esc_(tarikhMasa_(t.masa)) + '</div></div>' +
@@ -414,7 +427,7 @@ function slipHtml_(t, sekolah) {
     '<h3>Akaun bayaran</h3><table>' +
     baris('Nama akaun', BANK.nama) + baris('No. akaun', BANK.noAkaun) + baris('Bank', BANK.bank) +
     baris('Ref 1', t.lencanaId) + baris('Ref 2', t.sekolah.toUpperCase()) + '</table>' +
-    '<p class="note">Slip ini dijana secara automatik oleh sistem tempahan lencana Pengakap Daerah Kinta Utara pada ' +
+    '<p class="note">Slip ini dijana secara automatik oleh BadgeHub, sistem tempahan lencana Pengakap Daerah Kinta Utara, pada ' +
     esc_(tarikhMasa_(new Date())) + '. Sila simpan slip ini sebagai bukti tempahan.</p>' +
     '</div></body></html>';
 }
@@ -584,6 +597,7 @@ function bukaAdmin_(mode, tajuk) {
   var t = HtmlService.createTemplateFromFile('Admin');
   t.mode = mode;
   t.url = '';
+  t.aset = urlAset_();
   var html = t.evaluate().setWidth(mode === 'tempahan' ? 1000 : 480).setHeight(680);
   SpreadsheetApp.getUi().showModelessDialog(html, tajuk);
 }

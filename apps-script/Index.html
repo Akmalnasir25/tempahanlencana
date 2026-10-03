@@ -50,6 +50,7 @@ body {
   border-radius: 999px;
 }
 .admin-link:hover { color: var(--gold); border-color: var(--gold); }
+.brand { display: block; width: 150px; max-width: 45%; height: auto; margin: 0 auto 8px; }
 .eyebrow {
   margin: 0;
   color: var(--gold);
@@ -349,9 +350,10 @@ input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rg
 <body>
   <header class="hero">
     <a class="admin-link" href="<?= url ?>?admin" target="_top">🔒 Admin</a>
+    <? if (aset) { ?><img class="brand" src="<?= aset ?>emblem.png" alt=""><? } ?>
     <p class="eyebrow">Pengakap Daerah Kinta Utara</p>
-    <h1>Borang Tempahan Lencana</h1>
-    <p class="sub">Tempahan mengikut sekolah</p>
+    <h1>BadgeHub</h1>
+    <p class="sub">Sistem Tempahan Lencana Pengakap</p>
   </header>
 
   <main class="wrap">

@@ -1,4 +1,6 @@
-# Tempahan Lencana Pengakap
+# BadgeHub · Sistem Tempahan Lencana Pengakap
+
+![BadgeHub](assets/badgehub-logo.png)
 
 Borang tempahan lencana untuk sekolah di bawah Pengakap Daerah Kinta Utara, dideploy terus sebagai **Google Apps Script web app**. Borang yang sama boleh digunakan berulang kali: setiap lencana baru hanya perlu ditambah sebagai satu baris dalam Google Sheet.
 
@@ -54,6 +56,8 @@ Tab **Blast WhatsApp** dalam paparan admin menjana mesej WhatsApp untuk setiap p
 | `apps-script/Index.html` | Borang tempahan untuk guru |
 | `apps-script/Admin.html` | Paparan admin: senarai tempahan, tambah lencana, gambar lencana |
 | `apps-script/appsscript.json` | Tetapan projek (zon waktu Malaysia) |
+| `assets/badgehub-logo.png` | Logo asal BadgeHub (ikon dan lambang dalam `domain/img/` dijana daripadanya) |
+| `domain/` | Halaman pembalut lencana.akmalsys.com, ikon dan manifest (Firebase Hosting) |
 | `assets/lencana.jpg` | Gambar lencana AKPN 2026, untuk dimuat naik ke Google Drive |
 
 ## Cara deploy (sekali sahaja)

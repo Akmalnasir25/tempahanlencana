@@ -576,6 +576,7 @@ a.wa-btn.off { background: #c4c9d1; cursor: not-allowed; }
       headStyles: { fillColor: navy, textColor: 255, fontStyle: "bold" },
       footStyles: { fillColor: kuning, textColor: [11, 26, 92], fontStyle: "bold" },
       showFoot: "lastPage", // baris jumlah hanya di hujung jadual
+      rowPageBreak: "avoid", // satu baris tidak dipecahkan ke dua halaman
     };
     // Lajur nombor dijajarkan ke kanan, termasuk baris jumlah.
     function kananPada(lajur, tambahan) {
@@ -601,6 +602,12 @@ a.wa-btn.off { background: #c4c9d1; cursor: not-allowed; }
     doc.setTextColor(26, 31, 54);
     doc.text("Bilangan tempahan: " + list.length + "    Jumlah lencana: " + jumBil +
       "    Jumlah bayaran: RM " + rm(jumRM), 10, 26);
+    var rt = ringkasTambahan(list);
+    var atasSekolah = 34;
+    if (rt.ada) {
+      doc.text(teksRingkasTambahan(rt), 10, 31);
+      atasSekolah = 39;
+    }
 
     // Ringkasan mengikut sekolah
     var semua = paparan.semua;
@@ -612,9 +619,9 @@ a.wa-btn.off { background: #c4c9d1; cursor: not-allowed; }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.setTextColor(11, 26, 92);
-    doc.text("Ringkasan mengikut sekolah", 10, 34);
+    doc.text("Ringkasan mengikut sekolah", 10, atasSekolah);
     doc.autoTable(Object.assign({}, gaya, {
-      startY: 36,
+      startY: atasSekolah + 2,
       head: [["#", "Sekolah"].concat(semua ? ["Lencana"] : []).concat(["Bilangan", "Tempahan", "Jumlah (RM)"])],
       body: bodyS,
       foot: [["", "Jumlah (" + bodyS.length + " sekolah)"].concat(semua ? [""] : []).concat([sb, st, rm(sj)])],
@@ -631,14 +638,21 @@ a.wa-btn.off { background: #c4c9d1; cursor: not-allowed; }
       var s = statusTambahan(t);
       return [list.length - i, t.sekolah, t.bilangan, rm(t.jumlah),
         s === "SETUJU" ? "Setuju" : s === "BELUM" ? "Belum" : s ? "Tidak setuju" : "",
+        s ? rm(bakiTambahan(t)) : "",
         t.lencanaId, t.pemimpin, t.telefon, t.rujukan, tarikh(t.masa)];
     });
     doc.autoTable(Object.assign({}, gaya, {
       startY: y + 2,
-      head: [["#", "Sekolah", "Bilangan", "Jumlah (RM)", "Kenaikan harga", "Lencana", "Pemimpin", "Telefon", "No. rujukan", "Tarikh"]],
+      head: [["#", "Sekolah", "Bilangan", "Jumlah (RM)", "Kenaikan harga", "Baki tambahan (RM)", "Lencana", "Pemimpin", "Telefon", "No. rujukan", "Tarikh"]],
       body: bodyT,
-      foot: [["", "Jumlah", jumBil, rm(jumRM), "", "", "", "", "", ""]],
-    }, kananPada([0, 2, 3], { 9: { cellWidth: 26 } })));
+      foot: [["", "Jumlah", jumBil, rm(jumRM), rt.ada ? "Diterima" : "", rt.ada ? rm(rt.rmSetuju) : "", "", "", "", "", ""]],
+    }, kananPada([0, 2, 3, 5], { 10: { cellWidth: 26 } }), {
+      // Baki yang belum dibayar ditebalkan supaya mudah dikesan.
+      didParseCell: function (d) {
+        if (d.section === "body" && d.column.index === 5 && d.row.raw[4] === "Belum") d.cell.styles.fontStyle = "bold";
+        if (d.section === "foot" && [0, 2, 3, 5].indexOf(d.column.index) >= 0) d.cell.styles.halign = "right";
+      },
+    }));
 
     // Nombor halaman
     var n = doc.getNumberOfPages();
@@ -716,17 +730,9 @@ a.wa-btn.off { background: #c4c9d1; cursor: not-allowed; }
     $("statBayaran").textContent = "RM " + rm(jumRM);
 
     // Kenaikan harga: maklum balas pemimpin bagi tempahan pada harga lama
-    var kira = { SETUJU: 0, "TIDAK SETUJU": 0, BELUM: 0 }, jumTambahan = 0;
-    list.forEach(function (t) {
-      var s = statusTambahan(t);
-      if (!s) return;
-      kira[s]++;
-      if (s === "SETUJU") jumTambahan += t.tambahan;
-    });
-    var adaKenaikan = kira.SETUJU + kira["TIDAK SETUJU"] + kira.BELUM > 0;
-    $("statTambahan").classList.toggle("hidden", !adaKenaikan);
-    $("statTambahan").textContent = "Kenaikan harga: " + kira.SETUJU + " setuju (baki diterima RM " + rm(jumTambahan) + "), " +
-      kira["TIDAK SETUJU"] + " tidak setuju, " + kira.BELUM + " belum beri maklum balas.";
+    var rt = ringkasTambahan(list);
+    $("statTambahan").classList.toggle("hidden", !rt.ada);
+    $("statTambahan").textContent = teksRingkasTambahan(rt);
 
     // Ringkasan mengikut lencana (hanya bila "Semua lencana")
     $("ringkasanWrap").classList.toggle("hidden", !!pilih);
@@ -824,19 +830,50 @@ a.wa-btn.off { background: #c4c9d1; cursor: not-allowed; }
     return l && l.harga > t.harga ? "BELUM" : "";
   }
 
+  // Baki tambahan (RM) bagi tempahan pada harga lama: yang direkod semasa SETUJU, atau dikira daripada harga semasa.
+  function bakiTambahan(t) {
+    if (t.statusTambahan === "SETUJU") return t.tambahan;
+    var l = data.lencana.filter(function (x) { return x.id === t.lencanaId; })[0];
+    return l && l.harga > t.harga ? Math.round((l.harga - t.harga) * t.bilangan * 100) / 100 : 0;
+  }
+
+  // Ringkasan kenaikan harga bagi senarai tempahan: bilangan dan RM mengikut status.
+  function ringkasTambahan(list) {
+    var r = { SETUJU: 0, "TIDAK SETUJU": 0, BELUM: 0, rmSetuju: 0, rmBelum: 0, rmTidak: 0 };
+    list.forEach(function (t) {
+      var s = statusTambahan(t);
+      if (!s) return;
+      r[s]++;
+      var b = bakiTambahan(t);
+      if (s === "SETUJU") r.rmSetuju += b;
+      else if (s === "BELUM") r.rmBelum += b;
+      else r.rmTidak += b;
+    });
+    r.ada = r.SETUJU + r["TIDAK SETUJU"] + r.BELUM > 0;
+    return r;
+  }
+
+  function teksRingkasTambahan(r) {
+    return "Kenaikan harga: " + r.SETUJU + " setuju (baki diterima RM " + rm(r.rmSetuju) + "), " +
+      r.BELUM + " belum beri maklum balas (baki belum dibayar RM " + rm(r.rmBelum) + "), " +
+      r["TIDAK SETUJU"] + " tidak setuju (RM " + rm(r.rmTidak) + ").";
+  }
+
   function tdTambahan(t) {
     var td = el("td");
     var s = statusTambahan(t);
     if (!s) return td;
     td.appendChild(el("span", s === "SETUJU" ? "Setuju" : s === "BELUM" ? "Belum" : "Tidak setuju",
       "badge " + (s === "SETUJU" ? "open" : s === "BELUM" ? "off" : "closed")));
+    td.appendChild(document.createTextNode(" "));
     if (s === "SETUJU" && /^https:\/\//.test(t.resitTambahan)) {
-      td.appendChild(document.createTextNode(" "));
       var a = el("a", "Resit RM " + rm(t.tambahan));
       a.href = t.resitTambahan;
       a.target = "_blank";
       a.rel = "noopener";
       td.appendChild(a);
+    } else {
+      td.appendChild(el("span", "RM " + rm(bakiTambahan(t)), s === "BELUM" ? "" : "sub"));
     }
     return td;
   }

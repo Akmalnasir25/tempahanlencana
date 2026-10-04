@@ -200,6 +200,7 @@ a.wa-btn.off { background: #c4c9d1; cursor: not-allowed; }
         <input type="search" id="cari" placeholder="Cari sekolah, pemimpin, no. rujukan…">
         <button type="button" class="btn secondary" id="muatSemula">Muat semula</button>
         <button type="button" class="btn" id="cetak">🖨 Cetak</button>
+        <button type="button" class="btn" id="muatTurunPdf">⬇ PDF</button>
       </div>
       <p class="msg err" id="tempahanMsg"></p>
       <div class="print-only">
@@ -532,15 +533,140 @@ a.wa-btn.off { background: #c4c9d1; cursor: not-allowed; }
   $("muatSemula").addEventListener("click", muat);
 
   // Cetak paparan semasa (ikut tapisan lencana dan carian).
-  function isiInfoCetak() {
+  function infoCetak() {
     var f = $("filterLencana");
     var q = $("cari").value.trim();
-    $("cetakInfo").textContent = (f.value ? f.options[f.selectedIndex].text : "Semua lencana") +
+    return (f.value ? f.options[f.selectedIndex].text : "Semua lencana") +
       (q ? " · Carian: “" + q + "”" : "") +
       " · Dicetak: " + new Date().toLocaleString("en-GB", { timeZone: "Asia/Kuala_Lumpur", dateStyle: "short", timeStyle: "short" });
   }
+  function isiInfoCetak() { $("cetakInfo").textContent = infoCetak(); }
   window.addEventListener("beforeprint", isiInfoCetak);
   $("cetak").addEventListener("click", function () { isiInfoCetak(); window.print(); });
+
+  // ---------- Muat turun PDF (paparan semasa) ----------
+  var paparan = { list: [], sekolah: [], semua: true }; // diisi oleh papar() / paparSekolah()
+
+  function muatSkrip(src) {
+    return new Promise(function (ok, gagal) {
+      var sc = document.createElement("script");
+      sc.src = src;
+      sc.onload = ok;
+      sc.onerror = function () { gagal(new Error("Gagal memuatkan " + src)); };
+      document.head.appendChild(sc);
+    });
+  }
+
+  var pdfSedia = null;
+  function sediaPdf() {
+    if (!pdfSedia) {
+      pdfSedia = muatSkrip("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js")
+        .then(function () { return muatSkrip("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"); })
+        .catch(function (e) { pdfSedia = null; throw e; });
+    }
+    return pdfSedia;
+  }
+
+  function binaPdf() {
+    var doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    var navy = [19, 40, 138], kuning = [255, 248, 220];
+    var gaya = {
+      theme: "grid", margin: { left: 10, right: 10, bottom: 14 },
+      styles: { fontSize: 8, cellPadding: 1.5, lineColor: [221, 226, 240], lineWidth: 0.1 },
+      headStyles: { fillColor: navy, textColor: 255, fontStyle: "bold" },
+      footStyles: { fillColor: kuning, textColor: [11, 26, 92], fontStyle: "bold" },
+      showFoot: "lastPage", // baris jumlah hanya di hujung jadual
+    };
+    // Lajur nombor dijajarkan ke kanan, termasuk baris jumlah.
+    function kananPada(lajur, tambahan) {
+      var cs = tambahan || {};
+      lajur.forEach(function (c) { cs[c] = { halign: "right" }; });
+      return {
+        columnStyles: cs,
+        didParseCell: function (d) { if (d.section === "foot" && lajur.indexOf(d.column.index) >= 0) d.cell.styles.halign = "right"; },
+      };
+    }
+    var list = paparan.list;
+    var jumBil = 0, jumRM = 0;
+    list.forEach(function (t) { jumBil += t.bilangan; jumRM += t.jumlah; });
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(11, 26, 92);
+    doc.text("Senarai Tempahan Lencana · BadgeHub", 10, 14);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(91, 100, 128);
+    doc.text("Pengakap Daerah Kinta Utara · " + infoCetak(), 10, 20);
+    doc.setTextColor(26, 31, 54);
+    doc.text("Bilangan tempahan: " + list.length + "    Jumlah lencana: " + jumBil +
+      "    Jumlah bayaran: RM " + rm(jumRM), 10, 26);
+
+    // Ringkasan mengikut sekolah
+    var semua = paparan.semua;
+    var sb = 0, st = 0, sj = 0;
+    var bodyS = paparan.sekolah.map(function (g, i) {
+      sb += g.bilangan; st += g.tempahan; sj += g.jumlah;
+      return [i + 1, g.sekolah].concat(semua ? [g.lencanaId] : []).concat([g.bilangan, g.tempahan, rm(g.jumlah)]);
+    });
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(11, 26, 92);
+    doc.text("Ringkasan mengikut sekolah", 10, 34);
+    doc.autoTable(Object.assign({}, gaya, {
+      startY: 36,
+      head: [["#", "Sekolah"].concat(semua ? ["Lencana"] : []).concat(["Bilangan", "Tempahan", "Jumlah (RM)"])],
+      body: bodyS,
+      foot: [["", "Jumlah (" + bodyS.length + " sekolah)"].concat(semua ? [""] : []).concat([sb, st, rm(sj)])],
+    }, kananPada(semua ? [0, 3, 4, 5] : [0, 2, 3, 4])));
+
+    // Senarai tempahan (terbaru di atas, sama seperti skrin)
+    var y = doc.lastAutoTable.finalY + 10;
+    if (y > 180) { doc.addPage(); y = 14; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(11, 26, 92);
+    doc.text("Senarai tempahan", 10, y);
+    var bodyT = list.slice().reverse().map(function (t, i) {
+      var s = statusTambahan(t);
+      return [list.length - i, t.sekolah, t.bilangan, rm(t.jumlah),
+        s === "SETUJU" ? "Setuju" : s === "BELUM" ? "Belum" : s ? "Tidak setuju" : "",
+        t.lencanaId, t.pemimpin, t.telefon, t.rujukan, tarikh(t.masa)];
+    });
+    doc.autoTable(Object.assign({}, gaya, {
+      startY: y + 2,
+      head: [["#", "Sekolah", "Bilangan", "Jumlah (RM)", "Kenaikan harga", "Lencana", "Pemimpin", "Telefon", "No. rujukan", "Tarikh"]],
+      body: bodyT,
+      foot: [["", "Jumlah", jumBil, rm(jumRM), "", "", "", "", "", ""]],
+    }, kananPada([0, 2, 3], { 9: { cellWidth: 26 } })));
+
+    // Nombor halaman
+    var n = doc.getNumberOfPages();
+    for (var i = 1; i <= n; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(91, 100, 128);
+      doc.text("BadgeHub · Sistem Tempahan Lencana Pengakap", 10, 203);
+      doc.text("Halaman " + i + " / " + n, 287, 203, { align: "right" });
+    }
+
+    var tarikhFail = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kuala_Lumpur" });
+    doc.save("Senarai Tempahan " + ($("filterLencana").value || "Semua") + " " + tarikhFail + ".pdf");
+  }
+
+  $("muatTurunPdf").addEventListener("click", function () {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = "Menjana PDF…";
+    $("tempahanMsg").textContent = "";
+    sediaPdf().then(binaPdf).catch(function (e) {
+      $("tempahanMsg").textContent = "Gagal menjana PDF: " + errMsg(e);
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = "⬇ PDF";
+    });
+  });
 
   function isiPilihan() {
     var f = $("filterLencana"), g = $("uId");
@@ -580,6 +706,7 @@ a.wa-btn.off { background: #c4c9d1; cursor: not-allowed; }
     var list = ikutLencana.filter(function (t) {
       return !q || [t.rujukan, t.sekolah, t.pemimpin, t.telefon].join(" ").toLowerCase().indexOf(q) >= 0;
     });
+    paparan.list = list;
 
     // Statistik
     var jumBil = 0, jumRM = 0;
@@ -908,6 +1035,8 @@ a.wa-btn.off { background: #c4c9d1; cursor: not-allowed; }
     });
     var rows = Object.keys(kumpulan).map(function (k) { return kumpulan[k]; })
       .sort(function (a, b) { return a.sekolah.localeCompare(b.sekolah) || a.lencanaId.localeCompare(b.lencanaId); });
+    paparan.sekolah = rows;
+    paparan.semua = semua;
 
     var head = $("sekolahHead");
     head.innerHTML = "";
